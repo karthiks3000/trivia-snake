@@ -14,6 +14,11 @@ interface LeaderboardEntry {
   score: number;
   time: number;
 }
+interface Adventure {
+    adventure: string;
+    questions: TriviaQuestion[];
+  }
+
 const sampleQuestions: TriviaQuestion[] = [
     {
       question: "What is the capital of France?",
@@ -52,22 +57,41 @@ const Game: React.FC = () => {
     const [username, setUsername] = useState('');
     const [gameStarted, setGameStarted] = useState(false);
     const [leaderboard, setLeaderboard] = useState<LeaderboardEntry[]>([]);
-  
-    const currentQuestion = useMemo(() => {
-        if (currentQuestionIndex < sampleQuestions.length) {
-          const question = sampleQuestions[currentQuestionIndex];
-          const shuffledOptions = [...question.options].sort(() => Math.random() - 0.5);
-          const correctAnswerIndex = shuffledOptions.findIndex(option => option === question.correctAnswer);
-          const correctLetter = String.fromCharCode(65 + correctAnswerIndex);
-          return { 
-            question: question.question,
-            options: shuffledOptions, 
-            correctAnswer: question.correctAnswer,
-            correctLetter: correctLetter 
-          };
+    const [adventure, setAdventure] = useState<Adventure | null>(null);
+
+
+    const fetchQuestions = async (adventureName: string) => {
+        try {
+          const response = await fetch(`/data/${adventureName}.json`);
+          const data: Adventure = await response.json();
+          setAdventure(data);
+        } catch (error) {
+          console.error('Error fetching questions:', error);
         }
-        return null;
-      }, [currentQuestionIndex]);
+      };
+  
+
+  const handleStart = (name: string, selectedAdventure: string) => {
+    setUsername(name);
+    fetchQuestions(selectedAdventure);
+    setGameStarted(true);
+  };
+
+  const currentQuestion = useMemo(() => {
+    if (adventure && currentQuestionIndex < adventure.questions.length) {
+      const question = adventure.questions[currentQuestionIndex];
+      const shuffledOptions = [...question.options].sort(() => Math.random() - 0.5);
+      const correctAnswerIndex = shuffledOptions.findIndex(option => option === question.correctAnswer);
+      const correctLetter = String.fromCharCode(65 + correctAnswerIndex);
+      return { 
+        question: question.question,
+        options: shuffledOptions, 
+        correctAnswer: question.correctAnswer,
+        correctLetter: correctLetter 
+      };
+    }
+    return null;
+  }, [adventure, currentQuestionIndex]);
   
     const resetGame = useCallback(() => {
       setCurrentQuestionIndex(0);
@@ -127,11 +151,7 @@ const Game: React.FC = () => {
       }
       return () => clearInterval(timer);
     }, [gameStarted, gameOver]);
-  
-    const handleStart = (name: string) => {
-      setUsername(name);
-      setGameStarted(true);
-    };
+
   
     const formatTime = (seconds: number) => {
       const minutes = Math.floor(seconds / 60);
@@ -140,17 +160,17 @@ const Game: React.FC = () => {
     };
   
     if (!gameStarted) {
-      return (
-        <div className="flex justify-center items-center h-[calc(100vh-120px)]">
-          <div className="relative py-3 sm:max-w-xl sm:mx-auto">
-            <div className="absolute inset-0 bg-gradient-to-r from-cyan-400 to-light-blue-500 shadow-lg transform -skew-y-6 sm:skew-y-0 sm:-rotate-6 sm:rounded-3xl"></div>
-            <div className="relative px-4 py-10 bg-white shadow-lg sm:rounded-3xl sm:p-20">
-              <StartScreen onStart={handleStart} />
+        return (
+          <div className="flex justify-center items-center h-[calc(100vh-120px)]">
+            <div className="relative py-3 sm:max-w-xl sm:mx-auto">
+              <div className="absolute inset-0 bg-gradient-to-r from-cyan-400 to-light-blue-500 shadow-lg transform -skew-y-6 sm:skew-y-0 sm:-rotate-6 sm:rounded-3xl"></div>
+              <div className="relative px-4 py-10 bg-white shadow-lg sm:rounded-3xl sm:p-20">
+                <StartScreen onStart={handleStart} />
+              </div>
             </div>
           </div>
-        </div>
-      );
-    }
+        );
+      }
   
     if (gameOver) {
       return (

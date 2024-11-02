@@ -1,0 +1,16 @@
+{
+    "adventure": "History",
+    "questions": [
+      {
+        "question": "In which year did World War II end?",
+        "options": ["1943", "1944", "1945", "1946"],
+        "correctAnswer": "1945"
+      },
+      {
+        "question": "Who was the first President of the United States?",
+        "options": ["Thomas Jefferson", "John Adams", "George Washington", "Benjamin Franklin"],
+        "correctAnswer": "George Washington"
+      }
+    ]
+  }
+  
