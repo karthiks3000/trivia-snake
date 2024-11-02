@@ -141,14 +141,14 @@ const Grid: React.FC<GridProps> = ({ options, correctAnswer, onCorrectAnswer, on
   }, [moveSnake]);
 
   return (
-    <GridContainer>
-      <GridContent>
+    <div className="relative w-full h-full border-2 border-gray-300 bg-gray-100">
+      <div className="absolute inset-0">
         <Snake snake={snake} />
         {foods.map((food, index) => (
           <Food key={index} position={food.position} letter={food.letter} />
         ))}
-      </GridContent>
-    </GridContainer>
+      </div>
+    </div>
   );
 };
 

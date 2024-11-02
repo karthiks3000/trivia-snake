@@ -1,25 +1,14 @@
 import React from 'react';
-import styled from 'styled-components';
 import Game from './components/Game';
-
-const AppContainer = styled.div`
-  text-align: center;
-  max-width: 1200px;
-  margin: 0 auto;
-  padding: 20px;
-`;
-
-const Title = styled.h1`
-  margin-bottom: 30px;
-  color: #2196F3;
-`;
 
 const App: React.FC = () => {
   return (
-    <AppContainer>
-      <Title>Trivia Snake Game</Title>
-      <Game />
-    </AppContainer>
+    <div className="min-h-screen bg-gray-100 py-6 flex flex-col">
+      <h1 className="text-4xl font-bold text-center text-gray-900 mb-8">Trivia Snake Game</h1>
+      <div className="flex-grow container mx-auto px-4">
+        <Game />
+      </div>
+    </div>
   );
 };
 

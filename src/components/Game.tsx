@@ -144,6 +144,15 @@ const sampleQuestions: TriviaQuestion[] = [
     const [gameStarted, setGameStarted] = useState(false);
     const [leaderboard, setLeaderboard] = useState<LeaderboardEntry[]>([]);
 
+    const resetGame = useCallback(() => {
+        setCurrentQuestionIndex(0);
+        setScore(0);
+        setGameOver(false);
+        setElapsedTime(0);
+        setGameWon(false);
+        // Add any other state resets here
+      }, []); // Add dependencies if needed
+
 
     useEffect(() => {
       const storedLeaderboard = localStorage.getItem('trivia_snake_leaderboard');
@@ -215,83 +224,92 @@ const sampleQuestions: TriviaQuestion[] = [
       return `${minutes}:${remainingSeconds < 10 ? '0' : ''}${remainingSeconds}`;
     };
   
-    if (!gameStarted) {
-      return <StartScreen onStart={handleStart} />;
-    }
+   
+  if (!gameStarted) {
+    return (
+      <div className="flex justify-center items-center h-[calc(100vh-120px)]">
+        <div className="relative py-3 sm:max-w-xl sm:mx-auto">
+          <div className="absolute inset-0 bg-gradient-to-r from-cyan-400 to-light-blue-500 shadow-lg transform -skew-y-6 sm:skew-y-0 sm:-rotate-6 sm:rounded-3xl"></div>
+          <div className="relative px-4 py-10 bg-white shadow-lg sm:rounded-3xl sm:p-20">
+            <StartScreen onStart={handleStart} />
+          </div>
+        </div>
+      </div>
+    );
+  }
 
-    const resetGame = () => {
-        setCurrentQuestionIndex(0);
-        setScore(0);
-        setGameOver(false);
-        setElapsedTime(0);
-        setGameWon(false);
-      };
-  
-      if (gameOver) {
-        return (
-          <GameOverContainer>
-            <GameOverMessage>
-              {gameWon 
-                ? "Congratulations! You've completed all questions!" 
-                : "Game Over! Better luck next time!"}
-            </GameOverMessage>
-            <GameStats>Final Score: {score}</GameStats>
-            <GameStats>Total Time: {formatTime(elapsedTime)}</GameStats>
-            <h3>Leaderboard</h3>
-            {leaderboard.length > 0 ? (
-              <LeaderboardTable>
+  if (gameOver) {
+    return (
+      <div className="flex justify-center items-center h-[calc(100vh-120px)]">
+        <div className="relative py-3 sm:max-w-xl sm:mx-auto">
+          <div className="absolute inset-0 bg-gradient-to-r from-cyan-400 to-light-blue-500 shadow-lg transform -skew-y-6 sm:skew-y-0 sm:-rotate-6 sm:rounded-3xl"></div>
+          <div className="relative px-4 py-10 bg-white shadow-lg sm:rounded-3xl sm:p-20">
+            <div className="text-center">
+              <h2 className="text-2xl font-bold mb-4">
+                {gameWon 
+                  ? "Congratulations! You've completed all questions!" 
+                  : "Game Over! Better luck next time!"}
+              </h2>
+              <p className="text-lg mb-2">Final Score: {score}</p>
+              <p className="text-lg mb-4">Total Time: {formatTime(elapsedTime)}</p>
+              <h3 className="text-xl font-semibold mb-2">Leaderboard</h3>
+              <table className="w-full mb-4">
                 <thead>
-                  <tr>
-                    <TableHeader>Rank</TableHeader>
-                    <TableHeader>Username</TableHeader>
-                    <TableHeader>Score</TableHeader>
-                    <TableHeader>Time</TableHeader>
+                  <tr className="bg-gray-200">
+                    <th className="p-2 text-left">Rank</th>
+                    <th className="p-2 text-left">Username</th>
+                    <th className="p-2 text-left">Score</th>
+                    <th className="p-2 text-left">Time</th>
                   </tr>
                 </thead>
                 <tbody>
                   {leaderboard.map((entry, index) => (
-                    <tr key={index}>
-                      <TableCell>{index + 1}</TableCell>
-                      <TableCell>{entry.username}</TableCell>
-                      <TableCell>{entry.score}</TableCell>
-                      <TableCell>{formatTime(entry.time)}</TableCell>
+                    <tr key={index} className="border-b">
+                      <td className="p-2">{index + 1}</td>
+                      <td className="p-2">{entry.username}</td>
+                      <td className="p-2">{entry.score}</td>
+                      <td className="p-2">{formatTime(entry.time)}</td>
                     </tr>
                   ))}
                 </tbody>
-              </LeaderboardTable>
-            ) : (
-              <p>No leaderboard entries yet.</p>
-            )}
-            <PlayAgainButton onClick={resetGame}>Play Again</PlayAgainButton>
-          </GameOverContainer>
-        );
-      }
-      
-  
-    return (
-      <>
-        <InfoBar>
-        <span>Score: {score}</span>
-        <span>Time: {formatTime(elapsedTime)}</span>
-        <span>Current Rank: {getCurrentRank()}</span>
-      </InfoBar>
-        <GameContainer>
-          <QuestionArea>
-            <Question question={sampleQuestions[currentQuestionIndex]} />
-          </QuestionArea>
-          <GameArea>
-            <Grid
-              options={sampleQuestions[currentQuestionIndex].options}
-              correctAnswer={sampleQuestions[currentQuestionIndex].correctAnswer}
-              onCorrectAnswer={handleCorrectAnswer}
-              onWrongAnswer={handleWrongAnswer}
-              score={score}
-              elapsedTime={elapsedTime}
-            />
-          </GameArea>
-        </GameContainer>
-      </>
+              </table>
+              <button 
+                onClick={resetGame}
+                className="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded"
+              >
+                Play Again
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
     );
-  };
-  
-  export default Game;
+  }
+
+  return (
+    <div className="flex flex-col md:flex-row h-[calc(100vh-120px)]">
+      <div className="md:w-1/3 p-4">
+        <div className="mb-4 flex justify-between text-lg">
+          <span>Score: {score}</span>
+          <span>Time: {formatTime(elapsedTime)}</span>
+        </div>
+        <div className="mb-4">
+          <span className="text-lg">Current Rank: {getCurrentRank()}</span>
+        </div>
+        <Question question={sampleQuestions[currentQuestionIndex]} />
+      </div>
+      <div className="md:w-2/3 p-4">
+        <Grid
+          options={sampleQuestions[currentQuestionIndex].options}
+          correctAnswer={sampleQuestions[currentQuestionIndex].correctAnswer}
+          onCorrectAnswer={handleCorrectAnswer}
+          onWrongAnswer={handleWrongAnswer}
+          score={score}
+          elapsedTime={elapsedTime}
+        />
+      </div>
+    </div>
+  );
+};
+
+export default Game;

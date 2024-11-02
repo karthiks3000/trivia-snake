@@ -1,29 +1,4 @@
 import React, { useState } from 'react';
-import styled from 'styled-components';
-
-const StartContainer = styled.div`
-  text-align: center;
-  margin-top: 50px;
-`;
-
-const Input = styled.input`
-  padding: 10px;
-  font-size: 16px;
-  margin-right: 10px;
-`;
-
-const Button = styled.button`
-  padding: 10px 20px;
-  font-size: 16px;
-  background-color: #4CAF50;
-  color: white;
-  border: none;
-  cursor: pointer;
-
-  &:hover {
-    background-color: #45a049;
-  }
-`;
 
 interface StartScreenProps {
   onStart: (username: string) => void;
@@ -39,16 +14,26 @@ const StartScreen: React.FC<StartScreenProps> = ({ onStart }) => {
   };
 
   return (
-    <StartContainer>
-      <h2>Enter your username to start the game</h2>
-      <Input
+    <div className="text-center">
+      <h2 className="text-2xl font-bold mb-4">Enter your username to start the game</h2>
+      <input
         type="text"
         value={username}
         onChange={(e) => setUsername(e.target.value)}
         placeholder="Username"
+        className="border p-2 mb-4 w-full max-w-xs"
       />
-      <Button onClick={handleStart}>Start Game</Button>
-    </StartContainer>
+      <button 
+        onClick={handleStart}
+        className="bg-green-500 hover:bg-green-700 text-white font-bold py-2 px-4 rounded"
+      >
+        Start Game
+      </button>
+      <p className="mt-4 text-sm text-gray-600">
+        Use arrow keys or WASD to control the snake.
+        Eat the correct letter to answer the questions!
+      </p>
+    </div>
   );
 };
 
