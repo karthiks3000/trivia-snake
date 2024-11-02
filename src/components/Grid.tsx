@@ -3,21 +3,36 @@ import styled from 'styled-components';
 import Snake from './Snake';
 import Food from './Food';
 
+
 const GridContainer = styled.div`
   position: relative;
-  width: 90%;
-  height: 90%;
-  aspect-ratio: 1 / 1;
-  border: 2px solid #000;
-`;
-
-const GridContent = styled.div`
-  position: absolute;
-  top: 0;
-  left: 0;
   width: 100%;
   height: 100%;
+  border: 20px solid transparent;
+  border-image: repeating-linear-gradient(
+    45deg,
+    #B22222,
+    #B22222 10px,
+    #8B0000 10px,
+    #8B0000 20px
+  ) 20;
+  background-color: #228B22;
+  box-sizing: border-box;
+
+  &::before {
+    content: '';
+    position: absolute;
+    top: -20px;
+    left: -20px;
+    right: -20px;
+    bottom: -20px;
+    background: 
+      linear-gradient(45deg, rgba(0,0,0,0.1) 25%, transparent 25%, transparent 75%, rgba(0,0,0,0.1) 75%, rgba(0,0,0,0.1)) 0 0 / 40px 40px,
+      linear-gradient(45deg, rgba(0,0,0,0.1) 25%, transparent 25%, transparent 75%, rgba(0,0,0,0.1) 75%, rgba(0,0,0,0.1)) 20px 20px / 40px 40px;
+    z-index: -1;
+  }
 `;
+
 interface GridProps {
   options: string[];
   correctAnswer: string;
@@ -54,8 +69,8 @@ const Grid: React.FC<GridProps> = ({ options, correctAnswer, onCorrectAnswer, on
   
       newSnake.unshift(head);
   
-      // Grow snake every 10 seconds
-      if (elapsedTime - lastGrowthTime >= 10) {
+      // Grow snake every 3 seconds
+      if (elapsedTime - lastGrowthTime >= 3) {
         setLastGrowthTime(elapsedTime);
       } else {
         newSnake.pop();
@@ -66,7 +81,7 @@ const Grid: React.FC<GridProps> = ({ options, correctAnswer, onCorrectAnswer, on
       checkCollision(head);
     }, [snake, direction, elapsedTime, lastGrowthTime]);
 
-  const checkCollision = (head: number[]) => {
+  const checkCollision = useCallback((head: number[]) => {
     if (
       head[0] >= 100 ||
       head[0] < 0 ||
@@ -78,10 +93,10 @@ const Grid: React.FC<GridProps> = ({ options, correctAnswer, onCorrectAnswer, on
 
     foods.forEach((food, index) => {
         if (Math.abs(head[0] - food.position[0]) < 5 && Math.abs(head[1] - food.position[1]) < 5) {
-          if (food.letter === correctAnswer) {
+          console.log("correct = " + correctAnswer);
+          console.log("selected = " + food.letter);
+            if (food.letter === correctAnswer) {
             onCorrectAnswer();
-            // Reduce snake size by 1 on correct answer, but not below 1
-            setSnake(prevSnake => prevSnake.length > 1 ? prevSnake.slice(0, -1) : prevSnake);
           } else {
             onWrongAnswer();
           }
@@ -90,7 +105,7 @@ const Grid: React.FC<GridProps> = ({ options, correctAnswer, onCorrectAnswer, on
           setFoods(newFoods);
         }
       });
-    };
+    }, [foods, correctAnswer, onCorrectAnswer, onWrongAnswer]);
 
   const getRandomPosition = () => {
     const position = [
@@ -141,14 +156,12 @@ const Grid: React.FC<GridProps> = ({ options, correctAnswer, onCorrectAnswer, on
   }, [moveSnake]);
 
   return (
-    <div className="relative w-full h-full border-2 border-gray-300 bg-gray-100">
-      <div className="absolute inset-0">
-        <Snake snake={snake} />
-        {foods.map((food, index) => (
-          <Food key={index} position={food.position} letter={food.letter} />
-        ))}
-      </div>
-    </div>
+    <GridContainer>
+      <Snake snake={snake} />
+      {foods.map((food, index) => (
+        <Food key={index} position={food.position} letter={food.letter} />
+      ))}
+    </GridContainer>
   );
 };
 
