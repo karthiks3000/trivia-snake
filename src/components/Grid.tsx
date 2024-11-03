@@ -45,6 +45,7 @@ const Grid: React.FC<GridProps> = ({ options, correctAnswer, onCorrectAnswer, on
   const [snake, setSnake] = useState<number[][]>([[0, 0]]);
   const [foods, setFoods] = useState<Array<{ position: number[], letter: string }>>([]);
   const [direction, setDirection] = useState<string>('RIGHT');
+  const [lastGrowthTime, setLastGrowthTime] = useState(0);
 
   const getRandomPosition = useCallback(() => {
     const position = [
@@ -69,6 +70,13 @@ const Grid: React.FC<GridProps> = ({ options, correctAnswer, onCorrectAnswer, on
       if (Math.abs(head[0] - food.position[0]) < 5 && Math.abs(head[1] - food.position[1]) < 5) {
         if (food.letter === correctAnswer) {
           onCorrectAnswer();
+          // Decrease snake length by 1, but ensure it doesn't go below 1
+          setSnake(prevSnake => {
+            if (prevSnake.length > 1) {
+              return prevSnake.slice(0, -1);
+            }
+            return prevSnake;
+          });
         } else {
           onWrongAnswer();
         }
@@ -81,8 +89,7 @@ const Grid: React.FC<GridProps> = ({ options, correctAnswer, onCorrectAnswer, on
   }, [foods, correctAnswer, onCorrectAnswer, onWrongAnswer]);
 
   const moveSnake = useCallback(() => {
-    setSnake(prevSnake => {
-      const newSnake = [...prevSnake];
+      const newSnake = [...snake];
       const head = [...newSnake[0]];
 
       switch (direction) {
@@ -99,16 +106,17 @@ const Grid: React.FC<GridProps> = ({ options, correctAnswer, onCorrectAnswer, on
           head[1] += 5;
           break;
       }
-
-      if (checkCollision(head)) {
-        return prevSnake;
-      }
-
       newSnake.unshift(head);
-      newSnake.pop();
-      return newSnake;
-    });
-  }, [direction, checkCollision]);
+
+      // Grow snake every 3 seconds
+      if (elapsedTime - lastGrowthTime >= 3) {
+        setLastGrowthTime(elapsedTime);
+      } else {
+        newSnake.pop();
+      }
+      setSnake(newSnake);
+      checkCollision(head);
+  }, [snake, direction, elapsedTime, lastGrowthTime]);
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {

@@ -2,7 +2,6 @@ import React, { useState, useCallback, useEffect, useMemo } from 'react';
 import Grid from './Grid';
 import Question from './Question';
 import StartScreen from './StartScreen';
-import axios from 'axios';
 import api from '../api';
 
 interface TriviaQuestion {
@@ -131,6 +130,7 @@ const currentQuestion = useMemo(() => {
   
       const handleCorrectAnswer = useCallback(() => {
         setScore(prevScore => prevScore + 1);
+
         if (adventure) {
           if (currentQuestionIndex < adventure.questions.length) {
             setCurrentQuestionIndex(currentQuestionIndex + 1);
@@ -165,8 +165,10 @@ const currentQuestion = useMemo(() => {
           setElapsedTime(prevTime => prevTime + 1);
         }, 1000);
       }
-      return () => clearInterval(timer);
-    }, [gameStarted, gameOver]);
+      return () => {
+        if (timer) clearInterval(timer);
+      };
+    }, [gameStarted, gameOver, elapsedTime]);
 
   
     const formatTime = (seconds: number) => {
