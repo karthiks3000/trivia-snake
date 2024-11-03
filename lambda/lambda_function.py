@@ -81,36 +81,56 @@ def get_leaderboard():
         
         return {
             'statusCode': 200,
-            'headers': {
-                'Access-Control-Allow-Headers': 'Content-Type',
-                'Access-Control-Allow-Origin': '*',
-                'Access-Control-Allow-Methods': 'OPTIONS,POST,GET'
-            },
+            'headers': get_cors_headers(),
             'body': json.dumps(top_scores, cls=DecimalEncoder)
         }
     except Exception as e:
         return {
             'statusCode': 500,
-            'headers': {
-                'Access-Control-Allow-Headers': 'Content-Type',
-                'Access-Control-Allow-Origin': '*',
-                'Access-Control-Allow-Methods': 'OPTIONS,POST,GET'
-            },
+            'headers': get_cors_headers(),
             'body': json.dumps({'error': f'Error fetching leaderboard: {str(e)}'})
         }
 
-def save_score(score_data):
+def save_score(body):
+    username = body.get('username')
+    score = body.get('score')
+    time = body.get('time')
+    
+    if not username or score is None or time is None:
+        return {
+            'statusCode': 400,
+            'headers': get_cors_headers(),
+            'body': json.dumps({'error': 'Username, score, and time are required'})
+        }
+    
     try:
-        leaderboard_table.put_item(Item=score_data)
+        # Get the current record for the user
+        response = leaderboard_table.get_item(Key={'username': username})
+        new_item = {
+            'username': username,
+            'score': Decimal(str(score)),  # Convert to Decimal for DynamoDB
+            'time': Decimal(str(time))  # Convert to Decimal for DynamoDB
+        }
+        
+        if 'Item' in response:
+            current_record = response['Item']
+            # Update only if the new score is higher or if the scores are equal and the new time is lower
+            if score > current_record['score'] or (score == current_record['score'] and time < current_record['time']):
+                leaderboard_table.put_item(Item=new_item)
+        else:
+            # If no record exists, create a new one
+            leaderboard_table.put_item(Item=new_item)
+        
         return {
             'statusCode': 200,
             'headers': get_cors_headers(),
-            'body': json.dumps('Score saved successfully')
+            'body': json.dumps({'message': 'Score updated successfully'})
         }
     except Exception as e:
         return {
             'statusCode': 500,
-            'body': json.dumps(f'Error saving score: {str(e)}')
+            'headers': get_cors_headers(),
+            'body': json.dumps({'error': str(e)})
         }
     
 def register_user(body):

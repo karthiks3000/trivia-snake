@@ -2,7 +2,6 @@
   "name": "trivia-snake",
   "version": "0.1.0",
   "private": true,
-  "proxy": "https://n5frqox3zf.execute-api.us-east-1.amazonaws.com/prod",
   "type": "module",
   "dependencies": {
     "@aws-cdk/aws-apigateway": "^1.204.0",
@@ -29,8 +28,9 @@
     "web-vitals": "^2.1.4"
   },
   "scripts": {
-    "start": "react-scripts start",
+    "start": "env-cmd -f .env.development react-scripts start",
     "build": "react-scripts build",
+    "build:prod": "env-cmd -f .env.production react-scripts build",
     "test": "react-scripts test",
     "eject": "react-scripts eject",
     "cdk": "cdk",
@@ -62,9 +62,9 @@
     "aws-cdk": "^2.165.0",
     "aws-cdk-lib": "^2.165.0",
     "constructs": "^10.4.2",
+    "env-cmd": "^10.1.0",
     "postcss": "^8.4.47",
     "tailwindcss": "^3.4.14",
     "ts-node": "^10.9.2"
   }
-  
 }

@@ -1,0 +1,105 @@
+{
+    "questions": [
+      {
+        "question": "Who is the author of the Harry Potter series?",
+        "options": [
+          "J.K. Rowling",
+          "Stephen King",
+          "George R.R. Martin",
+          "Suzanne Collins"
+        ],
+        "correctAnswer": "J.K. Rowling"
+      },
+      {
+        "question": "What is the name of Harry Potter's owl?",
+        "options": [
+          "Hedwig",
+          "Errol",
+          "Pigwidgeon",
+          "Fawkes"
+        ],
+        "correctAnswer": "Hedwig"
+      },
+      {
+        "question": "Which house at Hogwarts does Harry Potter belong to?",
+        "options": [
+          "Gryffindor",
+          "Hufflepuff",
+          "Ravenclaw",
+          "Slytherin"
+        ],
+        "correctAnswer": "Gryffindor"
+      },
+      {
+        "question": "What position does Harry play in Quidditch?",
+        "options": [
+          "Seeker",
+          "Keeper",
+          "Chaser",
+          "Beater"
+        ],
+        "correctAnswer": "Seeker"
+      },
+      {
+        "question": "What is the name of the train that takes students to Hogwarts?",
+        "options": [
+          "Hogwarts Express",
+          "Knight Bus",
+          "Magical Metro",
+          "Wizard's Railway"
+        ],
+        "correctAnswer": "Hogwarts Express"
+      },
+      {
+        "question": "Who is the Headmaster of Hogwarts when Harry first arrives?",
+        "options": [
+          "Albus Dumbledore",
+          "Severus Snape",
+          "Minerva McGonagall",
+          "Dolores Umbridge"
+        ],
+        "correctAnswer": "Albus Dumbledore"
+      },
+      {
+        "question": "What is the core of Harry's wand?",
+        "options": [
+          "Phoenix feather",
+          "Dragon heartstring",
+          "Unicorn hair",
+          "Veela hair"
+        ],
+        "correctAnswer": "Phoenix feather"
+      },
+      {
+        "question": "What is the name of the village near Hogwarts?",
+        "options": [
+          "Hogsmeade",
+          "Diagon Alley",
+          "Godric's Hollow",
+          "Little Whinging"
+        ],
+        "correctAnswer": "Hogsmeade"
+      },
+      {
+        "question": "What spell is used to disarm an opponent?",
+        "options": [
+          "Expelliarmus",
+          "Stupefy",
+          "Protego",
+          "Accio"
+        ],
+        "correctAnswer": "Expelliarmus"
+      },
+      {
+        "question": "What is the name of the sport played on broomsticks?",
+        "options": [
+          "Quidditch",
+          "Broom Racing",
+          "Wizard Ball",
+          "Magicket"
+        ],
+        "correctAnswer": "Quidditch"
+      }
+    ]
+  }
+  

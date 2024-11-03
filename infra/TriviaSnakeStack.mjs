@@ -20,14 +20,7 @@ export class TriviaSnakeStack extends cdk.Stack {
     // DynamoDB Table
     const leaderboardTable = new dynamodb.Table(this, 'LeaderboardTable', {
       partitionKey: { name: 'username', type: dynamodb.AttributeType.STRING },
-      sortKey: { name: 'time', type: dynamodb.AttributeType.NUMBER },
       billingMode: dynamodb.BillingMode.PAY_PER_REQUEST,
-    });
-
-    leaderboardTable.addGlobalSecondaryIndex({
-      indexName: 'score-index',
-      partitionKey: { name: 'score', type: dynamodb.AttributeType.NUMBER },
-      sortKey: { name: 'time', type: dynamodb.AttributeType.NUMBER },
     });
 
     const usersTable = new dynamodb.Table(this, 'UsersTable', {

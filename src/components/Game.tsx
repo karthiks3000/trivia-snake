@@ -3,6 +3,7 @@ import Grid from './Grid';
 import Question from './Question';
 import StartScreen from './StartScreen';
 import axios from 'axios';
+import api from '../api';
 
 interface TriviaQuestion {
   question: string;
@@ -35,17 +36,20 @@ const Game: React.FC = () => {
     const [isLoading, setIsLoading] = useState(false);
 
     const fetchLeaderboard = useCallback(async () => {
-        try {
-          const response = await axios.get(`/leaderboard`);
+      try {
+        const response = await api.getLeaderboard();
+        if (Array.isArray(response.data)) {
           setLeaderboard(response.data);
-        } catch (error) {
-          console.error('Error fetching leaderboard:', error);
+        } else {
+          console.error("Unexpected leaderboard data:", response.data);
+          setLeaderboard([]);
         }
-      }, []);
-    
-      useEffect(() => {
-        fetchLeaderboard();
-      }, [fetchLeaderboard]);
+      } catch (error) {
+        console.error('Error fetching leaderboard:', error);
+        setLeaderboard([]);
+      }
+    }, []);
+  
 
 
 
@@ -82,21 +86,21 @@ const Game: React.FC = () => {
         setGameStarted(true);
     }, [fetchQuestions]);
 
-    const currentQuestion = useMemo(() => {
-      if (adventure && currentQuestionIndex < adventure.questions.length) {
-        const question = adventure.questions[currentQuestionIndex];
-        const shuffledOptions = [...question.options].sort(() => Math.random() - 0.5);
-        const correctAnswerIndex = shuffledOptions.findIndex(option => option === question.correctAnswer);
-        const correctLetter = String.fromCharCode(65 + correctAnswerIndex);
-        return { 
-          question: question.question,
-          options: shuffledOptions, 
-          correctAnswer: question.correctAnswer,
-          correctLetter: correctLetter 
-        };
-      }
-      return null;
-    }, [adventure, currentQuestionIndex]);
+const currentQuestion = useMemo(() => {
+    if (adventure && currentQuestionIndex < adventure.questions.length) {
+      const question = adventure.questions[currentQuestionIndex];
+      const shuffledOptions = [...question.options].sort(() => Math.random() - 0.5);
+      const correctAnswerIndex = shuffledOptions.findIndex(option => option === question.correctAnswer);
+      const correctLetter = String.fromCharCode(65 + correctAnswerIndex);
+      return { 
+        question: question.question,
+        options: shuffledOptions, 
+        correctAnswer: question.correctAnswer,
+        correctLetter: correctLetter 
+      };
+    }
+    return null;
+  }, [adventure, currentQuestionIndex]);
   
     const resetGame = useCallback(() => {
       setCurrentQuestionIndex(0);
@@ -117,7 +121,7 @@ const Game: React.FC = () => {
     const updateLeaderboard = useCallback(async () => {
         const newEntry: LeaderboardEntry = { username, score, time: elapsedTime };
         try {
-          await axios.post(`/leaderboard`, newEntry);
+          await api.addScore(newEntry);
           fetchLeaderboard();
         } catch (error) {
           console.error('Error updating leaderboard:', error);
@@ -128,8 +132,8 @@ const Game: React.FC = () => {
       const handleCorrectAnswer = useCallback(() => {
         setScore(prevScore => prevScore + 1);
         if (adventure) {
-          if (currentQuestionIndex < adventure.questions.length - 1) {
-            setCurrentQuestionIndex(prevIndex => prevIndex + 1);
+          if (currentQuestionIndex < adventure.questions.length) {
+            setCurrentQuestionIndex(currentQuestionIndex + 1);
           } else {
             setGameWon(true);
             setGameOver(true);
