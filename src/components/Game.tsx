@@ -117,8 +117,8 @@ const currentQuestion = useMemo(() => {
       }
     }, []);
   
-    const updateLeaderboard = useCallback(async () => {
-        const newEntry: LeaderboardEntry = { username, score, time: elapsedTime };
+    const updateLeaderboard = useCallback(async (finalScore: number) => {
+        const newEntry: LeaderboardEntry = { username, score: finalScore, time: elapsedTime };
         try {
           await api.addScore(newEntry);
           fetchLeaderboard();
@@ -129,26 +129,24 @@ const currentQuestion = useMemo(() => {
     
   
       const handleCorrectAnswer = useCallback(() => {
-        setScore(prevScore => prevScore + 1);
-
-        if (adventure) {
-          if (currentQuestionIndex < adventure.questions.length) {
-            setCurrentQuestionIndex(currentQuestionIndex + 1);
-          } else {
+        setScore(prevScore => {
+          const newScore = prevScore + 1;
+          // Check if this was the last question
+          if (currentQuestionIndex === adventure!.questions.length - 1) {
             setGameWon(true);
             setGameOver(true);
-            updateLeaderboard();
+            updateLeaderboard(newScore);
+          } else {
+            setCurrentQuestionIndex(prevIndex => prevIndex + 1);
           }
-        } else {
-          console.error('Adventure is null');
-          setGameOver(true);
-        }
+          return newScore;
+        });
       }, [currentQuestionIndex, updateLeaderboard, adventure]);
     
     
       const handleWrongAnswer = useCallback(() => {
         setGameOver(true);
-        updateLeaderboard();
+        updateLeaderboard(score);
       }, [updateLeaderboard]);
   
     const getCurrentRank = useCallback(() => {
