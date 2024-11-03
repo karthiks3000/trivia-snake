@@ -2,9 +2,10 @@ import React, { useState } from 'react';
 
 interface StartScreenProps {
   onStart: (username: string, adventure: string) => void;
+  error: string | null;
 }
 
-const StartScreen: React.FC<StartScreenProps> = ({ onStart }) => {
+const StartScreen: React.FC<StartScreenProps> = ({ onStart, error }) => {
   const [username, setUsername] = useState('');
   const [selectedAdventure, setSelectedAdventure] = useState('');
 
@@ -40,6 +41,7 @@ const StartScreen: React.FC<StartScreenProps> = ({ onStart }) => {
       >
         Start Game
       </button>
+      {error && <p className="text-red-500 mt-4">{error}</p>}
       <p className="mt-4 text-sm text-gray-600">
         Use arrow keys or WASD to control the snake.
         Eat the correct letter to answer the questions!

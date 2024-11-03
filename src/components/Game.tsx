@@ -58,24 +58,43 @@ const Game: React.FC = () => {
     const [gameStarted, setGameStarted] = useState(false);
     const [leaderboard, setLeaderboard] = useState<LeaderboardEntry[]>([]);
     const [adventure, setAdventure] = useState<Adventure | null>(null);
+    const [error, setError] = useState<string | null>(null);
+    const [isLoading, setIsLoading] = useState(false);
 
 
-    const fetchQuestions = async (adventureName: string) => {
+
+    const fetchQuestions = useCallback(async (adventureName: string) => {
+        setIsLoading(true);
         try {
           const response = await fetch(`/data/${adventureName}.json`);
-          const data: Adventure = await response.json();
-          setAdventure(data);
+          if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+          }
+          const text = await response.text(); // get the response as text
+          try {
+            const data: Adventure = JSON.parse(text); // try to parse it
+            setAdventure(data);
+            setError(null);
+          } catch (e) {
+            console.error("Parsing error:", e);
+            console.log("Received data:", text);
+            setError("Error parsing game data. Please try again.");
+          }
         } catch (error) {
           console.error('Error fetching questions:', error);
+          setError("Error loading game data. Please check your connection and try again.");
+        } finally {
+          setIsLoading(false);
         }
-      };
+      }, []);
+    
   
 
-  const handleStart = (name: string, selectedAdventure: string) => {
-    setUsername(name);
-    fetchQuestions(selectedAdventure);
-    setGameStarted(true);
-  };
+    const handleStart = useCallback((name: string, selectedAdventure: string) => {
+        setUsername(name);
+        fetchQuestions(selectedAdventure);
+        setGameStarted(true);
+    }, [fetchQuestions]);
 
   const currentQuestion = useMemo(() => {
     if (adventure && currentQuestionIndex < adventure.questions.length) {
@@ -158,14 +177,21 @@ const Game: React.FC = () => {
       const remainingSeconds = seconds % 60;
       return `${minutes}:${remainingSeconds < 10 ? '0' : ''}${remainingSeconds}`;
     };
+
+    if (gameStarted && isLoading) {
+        return <div className="text-center mt-8">Loading questions...</div>;
+    }
+    if (gameStarted && !adventure) {
+        return <div className="text-center mt-8">Error loading questions. Please try again.</div>;
+    }
   
-    if (!gameStarted) {
+    if (!gameStarted ) {
         return (
           <div className="flex justify-center items-center h-[calc(100vh-120px)]">
             <div className="relative py-3 sm:max-w-xl sm:mx-auto">
               <div className="absolute inset-0 bg-gradient-to-r from-cyan-400 to-light-blue-500 shadow-lg transform -skew-y-6 sm:skew-y-0 sm:-rotate-6 sm:rounded-3xl"></div>
               <div className="relative px-4 py-10 bg-white shadow-lg sm:rounded-3xl sm:p-20">
-                <StartScreen onStart={handleStart} />
+                <StartScreen onStart={handleStart} error={error} />
               </div>
             </div>
           </div>
