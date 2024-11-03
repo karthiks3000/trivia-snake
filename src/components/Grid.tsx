@@ -3,6 +3,7 @@ import styled from 'styled-components';
 import Snake from './Snake';
 import Food from './Food';
 
+// Styled component for the grid container
 const GridContainer = styled.div`
   position: relative;
   width: 100%;
@@ -41,42 +42,45 @@ interface GridProps {
   elapsedTime: number;
 }
 
-const Grid: React.FC<GridProps> = ({ options, correctAnswer, onCorrectAnswer, onWrongAnswer, score, elapsedTime }) => {
+type Direction = 'UP' | 'DOWN' | 'LEFT' | 'RIGHT';
+
+const Grid: React.FC<GridProps> = ({ 
+  options, 
+  correctAnswer, 
+  onCorrectAnswer, 
+  onWrongAnswer, 
+  score, 
+  elapsedTime 
+}) => {
+  // State declarations
   const [snake, setSnake] = useState<number[][]>([[0, 0]]);
   const [foods, setFoods] = useState<Array<{ position: number[], letter: string }>>([]);
-  const [direction, setDirection] = useState<string>('RIGHT');
+  const [direction, setDirection] = useState<Direction>('RIGHT');
   const [lastGrowthTime, setLastGrowthTime] = useState(0);
 
+  // Generate a random position for food
   const getRandomPosition = useCallback(() => {
-    const position = [
+    return [
       Math.floor(Math.random() * 20) * 5,
       Math.floor(Math.random() * 20) * 5,
     ];
-    return position;
   }, []);
 
+  // Check for collisions with walls or food
   const checkCollision = useCallback((head: number[]) => {
-    if (
-      head[0] >= 100 ||
-      head[0] < 0 ||
-      head[1] >= 100 ||
-      head[1] < 0
-    ) {
+    // Check wall collision
+    if (head[0] >= 100 || head[0] < 0 || head[1] >= 100 || head[1] < 0) {
       onWrongAnswer();
       return true;
     }
 
+    // Check food collision
     for (let food of foods) {
       if (Math.abs(head[0] - food.position[0]) < 5 && Math.abs(head[1] - food.position[1]) < 5) {
         if (food.letter === correctAnswer) {
           onCorrectAnswer();
           // Decrease snake length by 1, but ensure it doesn't go below 1
-          setSnake(prevSnake => {
-            if (prevSnake.length > 1) {
-              return prevSnake.slice(0, -1);
-            }
-            return prevSnake;
-          });
+          setSnake(prevSnake => prevSnake.length > 1 ? prevSnake.slice(0, -1) : prevSnake);
         } else {
           onWrongAnswer();
         }
@@ -88,60 +92,52 @@ const Grid: React.FC<GridProps> = ({ options, correctAnswer, onCorrectAnswer, on
     return false;
   }, [foods, correctAnswer, onCorrectAnswer, onWrongAnswer]);
 
+  // Move the snake
   const moveSnake = useCallback(() => {
-      const newSnake = [...snake];
+    setSnake(prevSnake => {
+      const newSnake = [...prevSnake];
       const head = [...newSnake[0]];
 
       switch (direction) {
-        case 'RIGHT':
-          head[0] += 5;
-          break;
-        case 'LEFT':
-          head[0] -= 5;
-          break;
-        case 'UP':
-          head[1] -= 5;
-          break;
-        case 'DOWN':
-          head[1] += 5;
-          break;
+        case 'RIGHT': head[0] += 5; break;
+        case 'LEFT': head[0] -= 5; break;
+        case 'UP': head[1] -= 5; break;
+        case 'DOWN': head[1] += 5; break;
       }
       newSnake.unshift(head);
 
-      // Grow snake every 3 seconds
       if (elapsedTime - lastGrowthTime >= 3) {
         setLastGrowthTime(elapsedTime);
       } else {
         newSnake.pop();
       }
-      setSnake(newSnake);
+
       checkCollision(head);
-  }, [snake, direction, elapsedTime, lastGrowthTime]);
+      return newSnake;
+    });
+  }, [direction, elapsedTime, lastGrowthTime, checkCollision]);
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      switch (e.key) {
-        case 'ArrowUp':
-        case 'w':
-          setDirection(prev => prev !== 'DOWN' ? 'UP' : prev);
-          break;
-        case 'ArrowDown':
-        case 's':
-          setDirection(prev => prev !== 'UP' ? 'DOWN' : prev);
-          break;
-        case 'ArrowLeft':
-        case 'a':
-          setDirection(prev => prev !== 'RIGHT' ? 'LEFT' : prev);
-          break;
-        case 'ArrowRight':
-        case 'd':
-          setDirection(prev => prev !== 'LEFT' ? 'RIGHT' : prev);
-          break;
+      const keyDirections: { [key: string]: Direction } = {
+        'ArrowUp': 'UP', 'w': 'UP',
+        'ArrowDown': 'DOWN', 's': 'DOWN',
+        'ArrowLeft': 'LEFT', 'a': 'LEFT',
+        'ArrowRight': 'RIGHT', 'd': 'RIGHT'
+      };
+
+      const newDirection = keyDirections[e.key];
+      if (newDirection) {
+        setDirection(prev => {
+          const opposites: { [K in Direction]: Direction } = {
+            'UP': 'DOWN', 'DOWN': 'UP', 'LEFT': 'RIGHT', 'RIGHT': 'LEFT'
+          };
+          return opposites[prev] !== newDirection ? newDirection : prev;
+        });
       }
     };
 
     document.addEventListener('keydown', handleKeyDown);
-
     const gameInterval = setInterval(moveSnake, 100);
 
     return () => {
