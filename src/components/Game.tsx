@@ -2,6 +2,7 @@ import React, { useState, useCallback, useEffect, useMemo } from 'react';
 import Grid from './Grid';
 import Question from './Question';
 import StartScreen from './StartScreen';
+import axios from 'axios';
 
 interface TriviaQuestion {
   question: string;
@@ -19,35 +20,7 @@ interface Adventure {
     questions: TriviaQuestion[];
   }
 
-const sampleQuestions: TriviaQuestion[] = [
-    {
-      question: "What is the capital of France?",
-      options: ["London", "Berlin", "Paris", "Madrid"],
-      correctAnswer: "Paris"
-    },
-    {
-      question: "Which planet is known as the Red Planet?",
-      options: ["Venus", "Mars", "Jupiter", "Saturn"],
-      correctAnswer: "Mars"
-    },
-    {
-      question: "Who painted the Mona Lisa?",
-      options: ["Vincent van Gogh", "Pablo Picasso", "Leonardo da Vinci", "Michelangelo"],
-      correctAnswer: "Leonardo da Vinci"
-    },
-    {
-      question: "What is the largest ocean on Earth?",
-      options: ["Atlantic Ocean", "Indian Ocean", "Arctic Ocean", "Pacific Ocean"],
-      correctAnswer: "Pacific Ocean"
-    },
-    {
-      question: "Which element has the chemical symbol 'O'?",
-      options: ["Gold", "Silver", "Oxygen", "Iron"],
-      correctAnswer: "Oxygen"
-    },
-    // ... (add more questions as needed)
-  ];
-  
+
 const Game: React.FC = () => {
     const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
     const [score, setScore] = useState(0);
@@ -60,6 +33,19 @@ const Game: React.FC = () => {
     const [adventure, setAdventure] = useState<Adventure | null>(null);
     const [error, setError] = useState<string | null>(null);
     const [isLoading, setIsLoading] = useState(false);
+
+    const fetchLeaderboard = useCallback(async () => {
+        try {
+          const response = await axios.get(`/leaderboard`);
+          setLeaderboard(response.data);
+        } catch (error) {
+          console.error('Error fetching leaderboard:', error);
+        }
+      }, []);
+    
+      useEffect(() => {
+        fetchLeaderboard();
+      }, [fetchLeaderboard]);
 
 
 
@@ -96,21 +82,21 @@ const Game: React.FC = () => {
         setGameStarted(true);
     }, [fetchQuestions]);
 
-  const currentQuestion = useMemo(() => {
-    if (adventure && currentQuestionIndex < adventure.questions.length) {
-      const question = adventure.questions[currentQuestionIndex];
-      const shuffledOptions = [...question.options].sort(() => Math.random() - 0.5);
-      const correctAnswerIndex = shuffledOptions.findIndex(option => option === question.correctAnswer);
-      const correctLetter = String.fromCharCode(65 + correctAnswerIndex);
-      return { 
-        question: question.question,
-        options: shuffledOptions, 
-        correctAnswer: question.correctAnswer,
-        correctLetter: correctLetter 
-      };
-    }
-    return null;
-  }, [adventure, currentQuestionIndex]);
+    const currentQuestion = useMemo(() => {
+      if (adventure && currentQuestionIndex < adventure.questions.length) {
+        const question = adventure.questions[currentQuestionIndex];
+        const shuffledOptions = [...question.options].sort(() => Math.random() - 0.5);
+        const correctAnswerIndex = shuffledOptions.findIndex(option => option === question.correctAnswer);
+        const correctLetter = String.fromCharCode(65 + correctAnswerIndex);
+        return { 
+          question: question.question,
+          options: shuffledOptions, 
+          correctAnswer: question.correctAnswer,
+          correctLetter: correctLetter 
+        };
+      }
+      return null;
+    }, [adventure, currentQuestionIndex]);
   
     const resetGame = useCallback(() => {
       setCurrentQuestionIndex(0);
@@ -128,26 +114,33 @@ const Game: React.FC = () => {
       }
     }, []);
   
-    const updateLeaderboard = useCallback(() => {
-      const newEntry: LeaderboardEntry = { username, score, time: elapsedTime };
-      const updatedLeaderboard = [...leaderboard, newEntry]
-        .sort((a, b) => b.score - a.score || a.time - b.time)
-        .slice(0, 10);
-      
-      localStorage.setItem('trivia_snake_leaderboard', JSON.stringify(updatedLeaderboard));
-      setLeaderboard(updatedLeaderboard);
-    }, [username, score, elapsedTime, leaderboard]);
-  
-    const handleCorrectAnswer = useCallback(() => {
-        setScore(prevScore => prevScore + 1);
-        if (currentQuestionIndex < sampleQuestions.length - 1) {
-          setCurrentQuestionIndex(prevIndex => prevIndex + 1);
-        } else {
-          setGameWon(true);
-          setGameOver(true);
-          updateLeaderboard();
+    const updateLeaderboard = useCallback(async () => {
+        const newEntry: LeaderboardEntry = { username, score, time: elapsedTime };
+        try {
+          await axios.post(`/leaderboard`, newEntry);
+          fetchLeaderboard();
+        } catch (error) {
+          console.error('Error updating leaderboard:', error);
         }
-      }, [currentQuestionIndex, updateLeaderboard]);
+      }, [username, score, elapsedTime, fetchLeaderboard]);
+    
+  
+      const handleCorrectAnswer = useCallback(() => {
+        setScore(prevScore => prevScore + 1);
+        if (adventure) {
+          if (currentQuestionIndex < adventure.questions.length - 1) {
+            setCurrentQuestionIndex(prevIndex => prevIndex + 1);
+          } else {
+            setGameWon(true);
+            setGameOver(true);
+            updateLeaderboard();
+          }
+        } else {
+          console.error('Adventure is null');
+          setGameOver(true);
+        }
+      }, [currentQuestionIndex, updateLeaderboard, adventure]);
+    
     
       const handleWrongAnswer = useCallback(() => {
         setGameOver(true);
