@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import styled from 'styled-components';
 import Snake from './Snake';
 import Food from './Food';
@@ -38,7 +38,6 @@ interface GridProps {
   correctAnswer: string;
   onCorrectAnswer: () => void;
   onWrongAnswer: () => void;
-  score: number;
   elapsedTime: number;
 }
 
@@ -49,7 +48,6 @@ const Grid: React.FC<GridProps> = ({
   correctAnswer, 
   onCorrectAnswer, 
   onWrongAnswer, 
-  score, 
   elapsedTime 
 }) => {
   // State declarations
@@ -57,7 +55,9 @@ const Grid: React.FC<GridProps> = ({
   const [foods, setFoods] = useState<Array<{ position: number[], letter: string }>>([]);
   const [direction, setDirection] = useState<Direction>('RIGHT');
   const [lastGrowthTime, setLastGrowthTime] = useState(0);
-
+  const [lastCorrectAnswerTime, setLastCorrectAnswerTime] = useState(0);
+  const hasCollidedRef = useRef(false);
+  
   // Generate a random position for food
   const getRandomPosition = useCallback(() => {
     return [
@@ -67,9 +67,12 @@ const Grid: React.FC<GridProps> = ({
   }, []);
 
   // Check for collisions with walls or food
-  const checkCollision = useCallback((head: number[]) => {
+  const checkCollision = (head: number[]) => {
+    if (hasCollidedRef.current) return false; // Prevent multiple collisions in the same frame
+    
     // Check wall collision
     if (head[0] >= 100 || head[0] < 0 || head[1] >= 100 || head[1] < 0) {
+      hasCollidedRef.current = true;
       onWrongAnswer();
       return true;
     }
@@ -78,10 +81,14 @@ const Grid: React.FC<GridProps> = ({
     for (let food of foods) {
       if (Math.abs(head[0] - food.position[0]) < 5 && Math.abs(head[1] - food.position[1]) < 5) {
         if (food.letter === correctAnswer) {
+          hasCollidedRef.current = true;
+          
           onCorrectAnswer();
           // Decrease snake length by 1, but ensure it doesn't go below 1
           setSnake(prevSnake => prevSnake.length > 1 ? prevSnake.slice(0, -1) : prevSnake);
+          
         } else {
+          hasCollidedRef.current = true;
           onWrongAnswer();
         }
         setFoods(prevFoods => prevFoods.filter(f => f !== food));
@@ -90,10 +97,11 @@ const Grid: React.FC<GridProps> = ({
     }
 
     return false;
-  }, [foods, correctAnswer, onCorrectAnswer, onWrongAnswer]);
+  };
 
   // Move the snake
   const moveSnake = useCallback(() => {
+    hasCollidedRef.current = false; // Reset collision flag at the start of each move
     setSnake(prevSnake => {
       const newSnake = [...prevSnake];
       const head = [...newSnake[0]];
@@ -112,7 +120,9 @@ const Grid: React.FC<GridProps> = ({
         newSnake.pop();
       }
 
-      checkCollision(head);
+      if (checkCollision(head)) {
+        return prevSnake; // Return the previous state if collision occurred
+      }
       return newSnake;
     });
   }, [direction, elapsedTime, lastGrowthTime, checkCollision]);

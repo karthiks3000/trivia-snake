@@ -96,33 +96,25 @@ const GameInner: React.FC = () => {
     setElapsedTime(0);
   }, [setScore, setGameOver, setGameWon, setElapsedTime]);
 
-  const handleCorrectAnswer = useCallback(() => {
+  const handleCorrectAnswer = () => {
     setScore(prevScore => {
       const newScore = prevScore + 1;
+      console.log("incrementing score to " + newScore);
       if (currentQuestionIndex === adventure!.questions.length - 1) {
         setGameWon(true);
         setGameOver(true);
-        updateLeaderboardFromContext(newScore);
-        fetchLeaderboard();
+        updateLeaderboardFromContext(newScore).then(() => fetchLeaderboard());
       } else {
         setCurrentQuestionIndex(prevIndex => prevIndex + 1);
       }
       return newScore;
     });
-  }, [currentQuestionIndex, updateLeaderboardFromContext, adventure, setGameWon, setGameOver, setScore]);
+  };
 
-  const handleWrongAnswer = useCallback(() => {
+  const handleWrongAnswer = () => {
     setGameOver(true);
-    updateLeaderboardFromContext(score);
-    fetchLeaderboard();
-  }, [updateLeaderboardFromContext, score, setGameOver]);
-
-  const getCurrentRank = useCallback(() => {
-    const currentEntry = { username: username, score, time: elapsedTime };
-    const rankList = [...leaderboard, currentEntry]
-      .sort((a, b) => b.score - a.score || a.time - b.time);
-    return rankList.findIndex(entry => entry === currentEntry) + 1;
-  }, [score, elapsedTime, leaderboard]);
+    updateLeaderboardFromContext(score).then(() => fetchLeaderboard());
+  };
 
   useEffect(() => {
     let timer: NodeJS.Timeout;
@@ -142,7 +134,6 @@ const GameInner: React.FC = () => {
         currentQuestion={currentQuestion}
         handleCorrectAnswer={handleCorrectAnswer}
         handleWrongAnswer={handleWrongAnswer}
-        getCurrentRank={getCurrentRank}
       />
     );
   }

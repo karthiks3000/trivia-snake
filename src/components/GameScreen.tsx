@@ -7,8 +7,7 @@ const GameScreen: React.FC<{
   currentQuestion: any,
   handleCorrectAnswer: () => void,
   handleWrongAnswer: () => void,
-  getCurrentRank: () => number
-}> = ({ currentQuestion, handleCorrectAnswer, handleWrongAnswer, getCurrentRank }) => {
+}> = ({ currentQuestion, handleCorrectAnswer, handleWrongAnswer }) => {
   const { score, elapsedTime, formatTime } = useGameContext();
 
   return (
@@ -17,9 +16,6 @@ const GameScreen: React.FC<{
         <div className="mb-4 flex justify-between text-lg">
           <span>Score: {score}</span>
           <span>Time: {formatTime(elapsedTime)}</span>
-        </div>
-        <div className="mb-4">
-          <span className="text-lg">Current Rank: {getCurrentRank()}</span>
         </div>
         <Question 
           question={currentQuestion.question}
@@ -32,7 +28,6 @@ const GameScreen: React.FC<{
           correctAnswer={currentQuestion.correctLetter}
           onCorrectAnswer={handleCorrectAnswer}
           onWrongAnswer={handleWrongAnswer}
-          score={score}
           elapsedTime={elapsedTime}
         />
       </div>
