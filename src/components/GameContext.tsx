@@ -1,6 +1,7 @@
 // GameContext.tsx
-import React, { createContext, useContext, useState, useCallback, ReactNode } from 'react';
+import React, { createContext, useContext, useState, useCallback, ReactNode, useEffect } from 'react';
 import api from '../api';
+import { UserProfile } from '../App';
 
 interface GameContextType {
   // Add all the state and functions you want to share
@@ -8,8 +9,7 @@ interface GameContextType {
   setScore: React.Dispatch<React.SetStateAction<number>>;
   elapsedTime: number;
   setElapsedTime: React.Dispatch<React.SetStateAction<number>>;
-  username: string;
-  setUsername: React.Dispatch<React.SetStateAction<string>>;
+  userProfile: UserProfile;
   gameOver: boolean;
   setGameOver: React.Dispatch<React.SetStateAction<boolean>>;
   gameWon: boolean;
@@ -21,23 +21,23 @@ interface GameContextType {
 const GameContext = createContext<GameContextType | undefined>(undefined);
 interface GameProviderProps {
     children: ReactNode;
+    userProfile: UserProfile;
   }
   
-  export const GameProvider: React.FC<GameProviderProps> = ({ children }) => {
+export const GameProvider: React.FC<GameProviderProps> = ({ children, userProfile }) => {
   const [score, setScore] = useState(0);
   const [elapsedTime, setElapsedTime] = useState(0);
-  const [username, setUsername] = useState('');
   const [gameOver, setGameOver] = useState(false);
   const [gameWon, setGameWon] = useState(false);
 
   const updateLeaderboard = useCallback(async (finalScore: number) => {
-    const newEntry = { username, score: finalScore, time: elapsedTime };
+    const newEntry = { username: userProfile.username, userId: userProfile.userId, score: finalScore, time: elapsedTime };
     try {
       await api.addScore(newEntry);
     } catch (error) {
       console.error('Error updating leaderboard:', error);
     }
-  }, [username, elapsedTime]);
+  }, [userProfile, elapsedTime]);
 
   const formatTime = (seconds: number) => {
     const minutes = Math.floor(seconds / 60);
@@ -47,7 +47,7 @@ interface GameProviderProps {
 
   return (
     <GameContext.Provider value={{
-      score, setScore, elapsedTime, setElapsedTime, username, setUsername,
+      score, setScore, elapsedTime, setElapsedTime, userProfile,
       gameOver, setGameOver, gameWon, setGameWon, updateLeaderboard, formatTime
     }}>
       {children}

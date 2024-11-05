@@ -3,6 +3,7 @@ import React from 'react';
 import { useGameContext } from './GameContext';
 
 interface LeaderboardEntry {
+  userId: string;
   username: string;
   score: number;
   time: number;

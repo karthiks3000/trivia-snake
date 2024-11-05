@@ -1,6 +1,7 @@
 // src/api.ts
 
 import axios, { AxiosResponse } from 'axios';
+import { LeaderboardEntry } from './components/Leaderboard';
 
 const API_URL = process.env.REACT_APP_API_URL || 'https://your-default-api-url.com';
 
@@ -13,11 +14,6 @@ const apiClient = axios.create({
 });
 
 // Define interfaces for your data structures
-interface LeaderboardEntry {
-  username: string;
-  score: number;
-  time: number;
-}
 
 interface UserCredentials {
   username: string;

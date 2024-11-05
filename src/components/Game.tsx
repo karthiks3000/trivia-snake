@@ -1,12 +1,13 @@
 import React, { useState, useCallback, useEffect, useMemo } from 'react';
 import { GameProvider, useGameContext } from './GameContext';
-import StartScreen from './StartScreen';
 import LoadingScreen from './LoadingScreen';
 import ErrorScreen from './ErrorScreen';
 import GameOverScreen from './GameOverScreen';
 import GameScreen from './GameScreen';
 import api from '../api';
 import { LeaderboardEntry } from './Leaderboard';
+import { UserProfile } from '../App';
+
 
 interface TriviaQuestion {
   question: string;
@@ -19,7 +20,12 @@ interface Adventure {
   questions: TriviaQuestion[];
 }
 
-const GameInner: React.FC = () => {
+interface GameProps {
+  adventure: string;
+  userProfile: UserProfile;
+}
+
+const GameInner: React.FC<GameProps> = ({ adventure: selectedAdventure }) => {
   const { 
     setScore, 
     setGameOver, 
@@ -28,17 +34,15 @@ const GameInner: React.FC = () => {
     score,
     elapsedTime,
     setElapsedTime,
-    username,
-    setUsername,
+    userProfile,
     gameOver,
   } = useGameContext();
 
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
-  const [gameStarted, setGameStarted] = useState(false);
   const [leaderboard, setLeaderboard] = useState<LeaderboardEntry[]>([]);
   const [adventure, setAdventure] = useState<Adventure | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [isLoading, setIsLoading] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
 
   const fetchLeaderboard = useCallback(async () => {
     try {
@@ -50,10 +54,10 @@ const GameInner: React.FC = () => {
     }
   }, []);
 
-  const fetchQuestions = useCallback(async (adventureName: string) => {
+  const fetchQuestions = useCallback(async () => {
     setIsLoading(true);
     try {
-      const response = await fetch(`/data/${adventureName}.json`);
+      const response = await fetch(`/data/${selectedAdventure}.json`);
       if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
       const data: Adventure = await response.json();
       setAdventure(data);
@@ -64,13 +68,12 @@ const GameInner: React.FC = () => {
     } finally {
       setIsLoading(false);
     }
-  }, []);
+  }, [selectedAdventure]);
 
-  const handleStart = useCallback((name: string, selectedAdventure: string) => {
-    setUsername(name);
-    fetchQuestions(selectedAdventure);
-    setGameStarted(true);
-  }, [fetchQuestions]);
+  useEffect(() => {
+    fetchQuestions();
+    fetchLeaderboard();
+  }, [fetchQuestions, fetchLeaderboard]);
 
   const currentQuestion = useMemo(() => {
     if (adventure && currentQuestionIndex < adventure.questions.length) {
@@ -92,9 +95,9 @@ const GameInner: React.FC = () => {
     setScore(0);
     setGameOver(false);
     setGameWon(false);
-    setGameStarted(true);
     setElapsedTime(0);
-  }, [setScore, setGameOver, setGameWon, setElapsedTime]);
+    fetchQuestions();
+  }, [setScore, setGameOver, setGameWon, setElapsedTime, fetchQuestions]);
 
   const handleCorrectAnswer = () => {
     setScore(prevScore => {
@@ -118,15 +121,14 @@ const GameInner: React.FC = () => {
 
   useEffect(() => {
     let timer: NodeJS.Timeout;
-    if (gameStarted && !gameOver) {
+    if (!gameOver) {
       timer = setInterval(() => setElapsedTime(prevTime => prevTime + 1), 1000);
     }
     return () => { if (timer) clearInterval(timer); };
-  }, [gameStarted, gameOver, setElapsedTime]);
+  }, [gameOver, setElapsedTime]);
 
-  if (gameStarted && isLoading) return <LoadingScreen />;
-  if (gameStarted && !adventure) return <ErrorScreen />;
-  if (!gameStarted) return <StartScreen onStart={handleStart} error={error} />;
+  if (isLoading) return <LoadingScreen />;
+  if (error) return <ErrorScreen />;
   if (gameOver) return <GameOverScreen resetGame={resetGame} leaderboard={leaderboard} />;
   if (currentQuestion) {
     return (
@@ -141,13 +143,12 @@ const GameInner: React.FC = () => {
   return null;
 };
 
-const Game: React.FC = () => {
+const Game: React.FC<GameProps> = ({ adventure, userProfile }) => {
   return (
-    <GameProvider>
-      <GameInner />
+    <GameProvider userProfile={userProfile}>
+      <GameInner adventure={adventure} userProfile={userProfile} />
     </GameProvider>
   );
 };
 
 export default Game;
-
