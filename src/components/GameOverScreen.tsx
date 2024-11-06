@@ -1,7 +1,9 @@
-// GameOverScreen.tsx
 import React from 'react';
 import { useGameContext } from './GameContext';
 import { Leaderboard, LeaderboardEntry } from './Leaderboard';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from './ui/Card';
+import { Button } from './ui/Button';
+import { Trophy, Clock, Redo } from 'lucide-react';
 
 interface GameOverScreenProps {
   resetGame: () => void;
@@ -12,27 +14,45 @@ const GameOverScreen: React.FC<GameOverScreenProps> = ({ resetGame, leaderboard 
   const { score, elapsedTime, gameWon, formatTime } = useGameContext();
 
   return (
-    <div className="flex justify-center items-center h-[calc(100vh-120px)]">
-      <div className="relative py-3 sm:max-w-xl sm:mx-auto">
-        <div className="absolute inset-0 bg-gradient-to-r from-cyan-400 to-light-blue-500 shadow-lg transform -skew-y-6 sm:skew-y-0 sm:-rotate-6 sm:rounded-3xl"></div>
-        <div className="relative px-4 py-10 bg-white shadow-lg sm:rounded-3xl sm:p-20">
-          <div className="text-center">
-            <h2 className="text-2xl font-bold mb-4">
-              {gameWon ? "Congratulations! You've completed all questions!" : "Game Over! Better luck next time!"}
-            </h2>
-            <p className="text-lg mb-2">Final Score: {score}</p>
-            <p className="text-lg mb-4">Total Time: {formatTime(elapsedTime)}</p>
-            <h3 className="text-xl font-semibold mb-2">Leaderboard</h3>
-            <Leaderboard entries={leaderboard} />
-            <button 
-              onClick={resetGame}
-              className="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded"
-            >
-              Play Again
-            </button>
+    <div className="flex justify-center items-center min-h-[calc(100vh-120px)] p-4">
+      <Card className="w-full max-w-2xl">
+        <CardHeader>
+          <CardTitle className="text-3xl font-bold text-center">
+            {gameWon ? "Congratulations!" : "Game Over"}
+          </CardTitle>
+          <CardDescription className="text-xl text-center">
+            {gameWon ? "You've completed all questions!" : "Better luck next time!"}
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-6">
+          <div className="flex justify-center space-x-8">
+            <div className="flex items-center">
+              <Trophy className="h-8 w-8 text-yellow-500 mr-2" />
+              <div>
+                <p className="text-sm text-gray-500">Final Score</p>
+                <p className="text-2xl font-bold">{score}</p>
+              </div>
+            </div>
+            <div className="flex items-center">
+              <Clock className="h-8 w-8 text-blue-500 mr-2" />
+              <div>
+                <p className="text-sm text-gray-500">Total Time</p>
+                <p className="text-2xl font-bold">{formatTime(elapsedTime)}</p>
+              </div>
+            </div>
           </div>
-        </div>
-      </div>
+          <div>
+            <h3 className="text-xl font-semibold mb-2 text-center">Leaderboard</h3>
+            <Leaderboard entries={leaderboard} />
+          </div>
+        </CardContent>
+        <CardFooter className="flex justify-center">
+          <Button onClick={resetGame} className="bg-indigo-600 hover:bg-indigo-700">
+            <Redo className="h-4 w-4 mr-2" />
+            Play Again
+          </Button>
+        </CardFooter>
+      </Card>
     </div>
   );
 };

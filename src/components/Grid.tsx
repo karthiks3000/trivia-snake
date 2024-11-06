@@ -1,37 +1,16 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import styled from 'styled-components';
 import Snake from './Snake';
 import Food from './Food';
 
-// Styled component for the grid container
-const GridContainer = styled.div`
-  position: relative;
-  width: 100%;
-  height: 100%;
-  border: 20px solid transparent;
-  border-image: repeating-linear-gradient(
-    45deg,
-    #B22222,
-    #B22222 10px,
-    #8B0000 10px,
-    #8B0000 20px
-  ) 20;
-  background-color: #228B22;
-  box-sizing: border-box;
-
-  &::before {
-    content: '';
-    position: absolute;
-    top: -20px;
-    left: -20px;
-    right: -20px;
-    bottom: -20px;
-    background: 
-      linear-gradient(45deg, rgba(0,0,0,0.1) 25%, transparent 25%, transparent 75%, rgba(0,0,0,0.1) 75%, rgba(0,0,0,0.1)) 0 0 / 40px 40px,
-      linear-gradient(45deg, rgba(0,0,0,0.1) 25%, transparent 25%, transparent 75%, rgba(0,0,0,0.1) 75%, rgba(0,0,0,0.1)) 20px 20px / 40px 40px;
-    z-index: -1;
-  }
-`;
+const GridContainer: React.FC<React.PropsWithChildren<{}>> = ({ children }) => (
+  <div className="relative w-full h-full bg-green-600 border-4 md:border-8 border-red-700 rounded-lg overflow-hidden">
+    <div className="absolute inset-0 bg-gradient-to-br from-green-500 to-green-700" />
+    <div className="absolute inset-0 opacity-10 bg-[linear-gradient(45deg,#000_25%,transparent_25%,transparent_75%,#000_75%,#000)_0_0/20px_20px,linear-gradient(45deg,#000_25%,transparent_25%,transparent_75%,#000_75%,#000)_10px_10px/20px_20px] md:bg-[linear-gradient(45deg,#000_25%,transparent_25%,transparent_75%,#000_75%,#000)_0_0/40px_40px,linear-gradient(45deg,#000_25%,transparent_25%,transparent_75%,#000_75%,#000)_20px_20px/40px_40px]" />
+    <div className="relative z-10 w-full h-full">
+      {children}
+    </div>
+  </div>
+);
 
 interface GridProps {
   options: string[];

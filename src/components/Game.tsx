@@ -7,6 +7,8 @@ import GameScreen from './GameScreen';
 import api from '../api';
 import { LeaderboardEntry } from './Leaderboard';
 import { UserProfile } from '../App';
+import { Card, CardContent } from './ui/Card';
+
 
 
 interface TriviaQuestion {
@@ -132,11 +134,15 @@ const GameInner: React.FC<GameProps> = ({ adventure: selectedAdventure }) => {
   if (gameOver) return <GameOverScreen resetGame={resetGame} leaderboard={leaderboard} />;
   if (currentQuestion) {
     return (
-      <GameScreen
-        currentQuestion={currentQuestion}
-        handleCorrectAnswer={handleCorrectAnswer}
-        handleWrongAnswer={handleWrongAnswer}
-      />
+      <Card className="w-full h-full">
+        <CardContent className="p-0">
+          <GameScreen
+            currentQuestion={currentQuestion}
+            handleCorrectAnswer={handleCorrectAnswer}
+            handleWrongAnswer={handleWrongAnswer}
+          />
+        </CardContent>
+      </Card>
     );
   }
 

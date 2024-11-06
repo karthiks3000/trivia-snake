@@ -1,4 +1,6 @@
 import React from 'react';
+import { Card, CardContent, CardHeader, CardTitle } from './ui/Card';
+import { Button } from './ui/Button';
 
 interface QuestionProps {
   question: string;
@@ -7,19 +9,26 @@ interface QuestionProps {
 
 const Question: React.FC<QuestionProps> = ({ question, options }) => {
   return (
-    <div className="bg-white shadow-md rounded px-4 py-4">
-      <h2 className="text-xl font-bold mb-4">{question}</h2>
-      <ul className="list-none">
-        {options.map((option, index) => (
-          <li 
-            key={index} 
-            className="mb-2 p-2 bg-gray-100 rounded hover:bg-gray-200 cursor-pointer"
-          >
-            {String.fromCharCode(65 + index)}. {option}
-          </li>
-        ))}
-      </ul>
-    </div>
+    <Card className="w-full">
+      <CardHeader>
+        <CardTitle className="text-xl">{question}</CardTitle>
+      </CardHeader>
+      <CardContent>
+        <ul className="space-y-2">
+          {options.map((option, index) => (
+            <li key={index}>
+              <Button
+                variant="outline"
+                className="w-full justify-start text-left hover:bg-gray-100"
+              >
+                <span className="font-semibold mr-2">{String.fromCharCode(65 + index)}.</span>
+                {option}
+              </Button>
+            </li>
+          ))}
+        </ul>
+      </CardContent>
+    </Card>
   );
 };
 

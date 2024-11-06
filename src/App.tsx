@@ -1,9 +1,12 @@
 import { useEffect, useState } from 'react';
 import { fetchUserAttributes } from 'aws-amplify/auth';
-import { Authenticator, ThemeProvider, Theme, View, Button, useAuthenticator } from '@aws-amplify/ui-react';
+import { Authenticator, ThemeProvider, Theme, View, useAuthenticator } from '@aws-amplify/ui-react';
+
 import '@aws-amplify/ui-react/styles.css';
 import Game from './components/Game';
+import AdventureSelection from './components/AdventureSelection';
 import './aws-config';
+import Header from './components/Header';
 
 const theme: Theme = {
   name: 'custom-theme',
@@ -47,10 +50,13 @@ export interface UserProfile {
   userId: string;
 }
 
+
+
 function AuthenticatedApp() {
-  const { user, signOut } = useAuthenticator((context) => [context.user]);
+  const { signOut } = useAuthenticator((context) => [context.user]);
   const [selectedAdventure, setSelectedAdventure] = useState('');
   const [userProfile, setUserProfile] = useState<UserProfile>();
+  const [showAdventureSelection, setShowAdventureSelection] = useState(true);
 
   useEffect(() => {
     async function fetchUsername() {
@@ -67,73 +73,71 @@ function AuthenticatedApp() {
     fetchUsername();
   }, []);
 
-  if (selectedAdventure) {
-    return (
-      <div className="fixed inset-0 bg-gray-100">
-        <Game adventure={selectedAdventure} userProfile={userProfile!} />
-      </div>
-    );
-  }
-
   return (
-    <div className="text-center">
-      <h1 className="text-2xl font-bold mb-4">Trivia Snake</h1>
-      <p className="mb-4">Welcome, {userProfile?.username}!</p>
-      <div className="mb-4">
-        <label htmlFor="adventure" className="block text-sm font-medium text-gray-700">Select Adventure</label>
-        <select
-          id="adventure"
-          value={selectedAdventure}
-          onChange={(e) => setSelectedAdventure(e.target.value)}
-          className="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
-          required
-        >
-          <option value="">Choose an adventure</option>
-          <option value="harry_potter">Harry Potter</option>
-          <option value="history">History</option>
-          <option value="science">Science</option>
-        </select>
-      </div>
-      <Button
-        onClick={signOut}
-        className="mt-4 w-full bg-red-500 hover:bg-red-700 text-white font-bold py-2 px-4 rounded"
-      >
-        Sign out
-      </Button>
+    <div className="flex flex-col min-h-screen bg-gray-100">
+      <Header
+        userProfile={userProfile}
+        showAdventureSelection={showAdventureSelection}
+        selectedAdventure={selectedAdventure}
+        onChangeAdventure={() => setShowAdventureSelection(true)}
+        onSignOut={signOut}
+      />
+      <main className="flex-grow container mx-auto px-4 py-8">
+        {showAdventureSelection ? (
+          <div className="bg-white rounded-lg shadow-lg p-6">
+            <AdventureSelection
+              userProfile={userProfile}
+              onAdventureSelect={(adventure) => {
+                setSelectedAdventure(adventure);
+                setShowAdventureSelection(false);
+              }}
+            />
+          </div>
+        ) : (
+          selectedAdventure && <Game adventure={selectedAdventure} userProfile={userProfile!} />
+        )}
+      </main>
     </div>
   );
 }
 
 function App() {
-
   return (
     <ThemeProvider theme={theme}>
-      <div className="flex justify-center items-center min-h-screen bg-gray-100">
-        <div className="relative py-3 sm:max-w-xl sm:mx-auto">
-          <div className="absolute inset-0 bg-gradient-to-r from-cyan-400 to-light-blue-500 shadow-lg transform -skew-y-6 sm:skew-y-0 sm:-rotate-6 sm:rounded-3xl"></div>
-          <div className="relative px-4 py-10 bg-white shadow-lg sm:rounded-3xl sm:p-20">
-            <Authenticator
-              components={{
-                Header() {
-                  return (
-                    <View textAlign="center" padding={4}>
-                      <h2 className="text-2xl font-bold mb-4">Welcome to Trivia Snake</h2>
-                    </View>
-                  );
-                },
-                Footer() {
-                  return (
-                    <View textAlign="center" padding={4}>
-                      <p className="text-sm text-gray-600">© 2024 Trivia Snake. All rights reserved.</p>
-                    </View>
-                  );
-                },
-              }}
-            >
-             {() => <AuthenticatedApp />}
-            </Authenticator>
-          </div>
-        </div>
+      <div className="min-h-screen bg-gray-100">
+        <Authenticator
+          components={{
+            Header() {
+              return (
+                <View textAlign="center" padding={4}>
+                  <h2 className="text-2xl font-bold mb-4">Welcome to Trivia Snake</h2>
+                </View>
+              );
+            },
+            Footer() {
+              return (
+                <View textAlign="center" padding={4}>
+                  <p className="text-sm text-gray-600">© 2024 Trivia Snake. All rights reserved.</p>
+                </View>
+              );
+            },
+          }}
+        >
+          {({ user }) => (
+            user ? (
+              <AuthenticatedApp />
+            ) : (
+              <div className="flex justify-center items-center min-h-screen">
+                <div className="relative py-3 sm:max-w-xl sm:mx-auto">
+                  <div className="absolute inset-0 bg-gradient-to-r from-cyan-400 to-light-blue-500 shadow-lg transform -skew-y-6 sm:skew-y-0 sm:-rotate-6 sm:rounded-3xl"></div>
+                  <div className="relative px-4 py-10 bg-white shadow-lg sm:rounded-3xl sm:p-20">
+                    {/* Authenticator content */}
+                  </div>
+                </div>
+              </div>
+            )
+          )}
+        </Authenticator>
       </div>
     </ThemeProvider>
   );
