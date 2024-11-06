@@ -6,6 +6,7 @@ import * as s3 from 'aws-cdk-lib/aws-s3';
 import * as s3deploy from 'aws-cdk-lib/aws-s3-deployment';
 import * as cloudfront from 'aws-cdk-lib/aws-cloudfront';
 import * as origins from 'aws-cdk-lib/aws-cloudfront-origins';
+import * as cognito from 'aws-cdk-lib/aws-cognito';
 import * as iam from 'aws-cdk-lib/aws-iam';
 import * as path from 'path';
 import { fileURLToPath } from 'url';
@@ -16,15 +17,80 @@ const __dirname = path.dirname(__filename);
 export class TriviaSnakeStack extends cdk.Stack {
   constructor(scope, id, props) {
     super(scope, id, props);
+    const allowedURLs = ['http://localhost:3000', 'https://dj3xrj5xgqclx.cloudfront.net'];
 
-    // DynamoDB Table
-    const leaderboardTable = new dynamodb.Table(this, 'LeaderboardTable', {
-      partitionKey: { name: 'username', type: dynamodb.AttributeType.STRING },
-      billingMode: dynamodb.BillingMode.PAY_PER_REQUEST,
+    // Cognito User Pool
+    const userPool = new cognito.UserPool(this, 'TriviaSnakeUserPool', {
+      userPoolName: 'trivia-snake-user-pool',
+      selfSignUpEnabled: true,
+      signInAliases: {
+        email: true,
+      },
+      autoVerify: {
+        email: true,
+      },
+      standardAttributes: {
+        email: {
+          required: true,
+          mutable: true,
+        },
+        preferredUsername: {
+          required: true,
+          mutable: true,
+        },
+      },
+      passwordPolicy: {
+        minLength: 8,
+        requireLowercase: true,
+        requireUppercase: true,
+        requireDigits: true,
+        requireSymbols: true,
+      },
+      accountRecovery: cognito.AccountRecovery.EMAIL_ONLY,
+      removalPolicy: cdk.RemovalPolicy.DESTROY,
     });
 
-    const usersTable = new dynamodb.Table(this, 'UsersTable', {
-      tableName: 'TriviaSnakeUsers',
+        // Add a resource server
+    const resourceServer = userPool.addResourceServer('TriviaSnakeResourceServer', {
+      identifier: 'trivia-snake',
+      scopes: [
+        {
+          scopeName: 'read',
+          scopeDescription: 'Read access to Trivia Snake resources',
+        },
+        {
+          scopeName: 'write',
+          scopeDescription: 'Write access to Trivia Snake resources',
+        },
+      ],
+    });
+
+
+    // User Pool Client
+    const userPoolClient = new cognito.UserPoolClient(this, 'TriviaSnakeUserPoolClient', {
+      userPool,
+      generateSecret: false,
+      authFlows: {
+        adminUserPassword: true,
+        userPassword: true,
+        userSrp: true,
+      },
+      oAuth: {
+        flows: {
+          implicitCodeGrant: true,
+        },
+        scopes: [
+          cognito.OAuthScope.EMAIL,  
+          cognito.OAuthScope.OPENID,
+          cognito.OAuthScope.PROFILE,
+        ],
+        callbackUrls: allowedURLs, // Your CloudFront URL
+        logoutUrls: allowedURLs, // Your CloudFront URL
+      },
+    });
+
+    // DynamoDB Tables
+    const leaderboardTable = new dynamodb.Table(this, 'LeaderboardTable', {
       partitionKey: { name: 'username', type: dynamodb.AttributeType.STRING },
       billingMode: dynamodb.BillingMode.PAY_PER_REQUEST,
     });
@@ -36,151 +102,128 @@ export class TriviaSnakeStack extends cdk.Stack {
       code: lambda.Code.fromAsset(path.join(__dirname, '..', 'lambda')),
       environment: {
         LEADERBOARD_TABLE_NAME: leaderboardTable.tableName,
-        USERS_TABLE_NAME: usersTable.tableName,
+        USER_POOL_ID: userPool.userPoolId,
+        USER_POOL_CLIENT_ID: userPoolClient.userPoolClientId,
       },
     });
 
     leaderboardTable.grantReadWriteData(leaderboardFunction);
-    usersTable.grantReadWriteData(leaderboardFunction);
     
     // API Gateway
     const api = new apigateway.RestApi(this, 'TriviaSnakeApi', {
       defaultCorsPreflightOptions: {
-        allowOrigins: apigateway.Cors.ALL_ORIGINS,
+        allowOrigins: allowedURLs,
         allowMethods: apigateway.Cors.ALL_METHODS,
-        allowHeaders: apigateway.Cors.DEFAULT_HEADERS,
+        allowHeaders: ['Content-Type', 'X-Amz-Date', 'Authorization', 'X-Api-Key', 'X-Amz-Security-Token'],
         allowCredentials: true,
       },
     });
 
-    // Create a resource and add methods
+    // Cognito User Pool Authorizer
+    const authorizer = new apigateway.CognitoUserPoolsAuthorizer(this, 'TriviaSnakeAuthorizer', {
+      cognitoUserPools: [userPool],
+      identitySource: 'method.request.header.Authorization',
+    });
+
+    // Create resources and add methods
     const leaderboardResource = api.root.addResource('leaderboard');
-    const registerResource = api.root.addResource('register');
-    const loginResource = api.root.addResource('login'); 
     
-    // Add GET method
-    leaderboardResource.addMethod('GET', new apigateway.LambdaIntegration(leaderboardFunction, {
-      requestTemplates: { "application/json": '{ "statusCode": "200" }' },
-      integrationResponses: [{
-        statusCode: '200',
-        responseParameters: {
-          'method.response.header.Access-Control-Allow-Origin': "'*'",
-        },
-      }],
-    }), {
-      methodResponses: [{
-        statusCode: '200',
-        responseParameters: {
-          'method.response.header.Access-Control-Allow-Origin': true,
-        },
-      }],
-    });
-
-    // Add POST method
-    leaderboardResource.addMethod('POST', new apigateway.LambdaIntegration(leaderboardFunction, {
-      requestTemplates: { "application/json": '{ "statusCode": "200" }' },
-      integrationResponses: [{
-        statusCode: '200',
-        responseParameters: {
-          'method.response.header.Access-Control-Allow-Origin': "'*'",
-        },
-      }],
-    }), {
-      methodResponses: [{
-        statusCode: '200',
-        responseParameters: {
-          'method.response.header.Access-Control-Allow-Origin': true,
-        },
-      }],
-    });
-
-    // Add POST method
-    registerResource.addMethod('POST', new apigateway.LambdaIntegration(leaderboardFunction, {
-      requestTemplates: { "application/json": '{ "statusCode": "200" }' },
-      integrationResponses: [{
-        statusCode: '200',
-        responseParameters: {
-          'method.response.header.Access-Control-Allow-Origin': "'*'",
-        },
-      }],
-    }), {
-      methodResponses: [{
-        statusCode: '200',
-        responseParameters: {
-          'method.response.header.Access-Control-Allow-Origin': true,
-        },
-      }],
-    });
-
-    // Add POST method
-    loginResource.addMethod('POST', new apigateway.LambdaIntegration(leaderboardFunction, {
-      requestTemplates: { "application/json": '{ "statusCode": "200" }' },
-      integrationResponses: [{
-        statusCode: '200',
-        responseParameters: {
-          'method.response.header.Access-Control-Allow-Origin': "'*'",
-        },
-      }],
-    }), {
-      methodResponses: [{
-        statusCode: '200',
-        responseParameters: {
-          'method.response.header.Access-Control-Allow-Origin': true,
-        },
-      }],
-    });
-
-       // S3 bucket for frontend
-       const websiteBucket = new s3.Bucket(this, 'TriviaSnakeWebsiteBucket', {
-        publicReadAccess: false,
-        blockPublicAccess: s3.BlockPublicAccess.BLOCK_ALL,
-        removalPolicy: cdk.RemovalPolicy.DESTROY,
-        autoDeleteObjects: true,
+    // Add methods (GET, POST) for each resource with Cognito authorization
+    [leaderboardResource].forEach(resource => {
+      ['GET', 'POST'].forEach(method => {
+        resource.addMethod(method, new apigateway.LambdaIntegration(leaderboardFunction, {
+          requestTemplates: { "application/json": '{ "statusCode": "200" }' },
+          integrationResponses: [{
+            statusCode: '200',
+            responseParameters: {
+              'method.response.header.Access-Control-Allow-Origin': "'*'",
+            },
+          }],
+        }), {
+          authorizer: authorizer,
+          authorizationType: apigateway.AuthorizationType.COGNITO,
+          methodResponses: [{
+            statusCode: '200',
+            responseParameters: {
+              'method.response.header.Access-Control-Allow-Origin': true,
+            },
+          }],
+        });
       });
-  
-      // CloudFront Origin Access Identity
-      const oai = new cloudfront.OriginAccessIdentity(this, 'TriviaSnakeOAI', {
-        comment: "Origin Access Identity for Trivia Snake website",
-      });
-  
-      // Grant read permissions to the OAI
-      websiteBucket.grantRead(oai);
+    });
+
+    // S3 bucket for frontend
+    const websiteBucket = new s3.Bucket(this, 'TriviaSnakeWebsiteBucket', {
+    publicReadAccess: false,
+    blockPublicAccess: s3.BlockPublicAccess.BLOCK_ALL,
+    removalPolicy: cdk.RemovalPolicy.DESTROY,
+    autoDeleteObjects: true,
+    });
+
+    /// CloudFront Origin Access Control
+    const oac = new cloudfront.CfnOriginAccessControl(this, 'TriviaSnakeOAC', {
+      originAccessControlConfig: {
+        name: 'TriviaSnakeOAC',
+        originAccessControlOriginType: 's3',
+        signingBehavior: 'always',
+        signingProtocol: 'sigv4',
+      },
+    });
   
       // CloudFront distribution
-      const distribution = new cloudfront.Distribution(this, 'TriviaSnakeDistribution', {
-        defaultBehavior: {
-          origin: new origins.S3Origin(websiteBucket, {
-            originAccessIdentity: oai
-          }),
-          viewerProtocolPolicy: cloudfront.ViewerProtocolPolicy.REDIRECT_TO_HTTPS,
-          allowedMethods: cloudfront.AllowedMethods.ALLOW_GET_HEAD_OPTIONS,
-          cachePolicy: cloudfront.CachePolicy.CACHING_OPTIMIZED,
+    const distribution = new cloudfront.Distribution(this, 'TriviaSnakeDistribution', {
+      defaultBehavior: {
+        origin: new origins.S3BucketOrigin(websiteBucket),
+        viewerProtocolPolicy: cloudfront.ViewerProtocolPolicy.REDIRECT_TO_HTTPS,
+        allowedMethods: cloudfront.AllowedMethods.ALLOW_GET_HEAD_OPTIONS,
+        cachePolicy: cloudfront.CachePolicy.CACHING_OPTIMIZED,
+      },
+      defaultRootObject: 'index.html',
+      errorResponses: [
+        {
+          httpStatus: 403,
+          responseHttpStatus: 200,
+          responsePagePath: '/index.html',
         },
-        defaultRootObject: 'index.html',
-        errorResponses: [
-          {
-            httpStatus: 403,
-            responseHttpStatus: 200,
-            responsePagePath: '/index.html',
-          },
-          {
-            httpStatus: 404,
-            responseHttpStatus: 200,
-            responsePagePath: '/index.html',
-          },
-        ],
-      });
-  
-      // Deploy frontend to S3
-      new s3deploy.BucketDeployment(this, 'TriviaSnakeBucketDeployment', {
-        sources: [s3deploy.Source.asset(path.join(__dirname, '..', 'build'))],
-        destinationBucket: websiteBucket,
-        distribution,
-        distributionPaths: ['/*'],
-      });
+        {
+          httpStatus: 404,
+          responseHttpStatus: 200,
+          responsePagePath: '/index.html',
+        },
+      ],
+    }); 
+    // Associate the OAC with the distribution
+    const cfnDistribution = distribution.node.defaultChild;
+    cfnDistribution.addPropertyOverride('DistributionConfig.Origins.0.OriginAccessControlId', oac.ref);
+
+    // Update bucket policy to allow access from CloudFront using OAC
+    const bucketPolicyStatement = new iam.PolicyStatement({
+      actions: ['s3:GetObject'],
+      effect: iam.Effect.ALLOW,
+      principals: [new iam.ServicePrincipal('cloudfront.amazonaws.com')],
+      resources: [websiteBucket.arnForObjects('*')],
+      conditions: {
+        StringEquals: {
+          'AWS:SourceArn': `arn:aws:cloudfront::${this.account}:distribution/${distribution.distributionId}`,
+        },
+      },
+    });
+
+    websiteBucket.addToResourcePolicy(bucketPolicyStatement);
+    
+
+    // Deploy frontend to S3
+    new s3deploy.BucketDeployment(this, 'TriviaSnakeBucketDeployment', {
+      sources: [s3deploy.Source.asset(path.join(__dirname, '..', 'build'))],
+      destinationBucket: websiteBucket,
+      distribution,
+      distributionPaths: ['/*'],
+    });
 
     // Output the API URL and CloudFront URL
     new cdk.CfnOutput(this, 'ApiUrl', { value: api.url });
     new cdk.CfnOutput(this, 'CloudFrontUrl', { value: `https://${distribution.domainName}` });
+    new cdk.CfnOutput(this, 'UserPoolId', { value: userPool.userPoolId });
+    new cdk.CfnOutput(this, 'UserPoolClientId', { value: userPoolClient.userPoolClientId });
   }
 }

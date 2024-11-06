@@ -10,10 +10,8 @@ import hashlib
 
 
 dynamodb = boto3.resource('dynamodb')
-users_table_name = os.environ['USERS_TABLE_NAME']
 leaderboard_table_name = os.environ['LEADERBOARD_TABLE_NAME']
 # Create the table objects
-users_table = dynamodb.Table(users_table_name)
 leaderboard_table = dynamodb.Table(leaderboard_table_name)
 
 
@@ -33,34 +31,12 @@ def lambda_handler(event, context):
             return get_leaderboard()
         elif http_method == 'POST':
             return save_score(json.loads(event['body']))
-    elif path == '/register':
-        if http_method == 'POST':
-            return register_user(json.loads(event['body']))
-    elif path == '/login':
-        if http_method == 'POST':
-            return login_user(json.loads(event['body']))
     
     return {
         'statusCode': 400,
         'headers': get_cors_headers(),
         'body': json.dumps({'error': 'Unsupported HTTP method or path'})
     }
-
-def hash_password(password):
-    # Use a unique salt for each user
-    salt = os.urandom(32)
-    hashed = hashlib.pbkdf2_hmac('sha256', password.encode('utf-8'), salt, 100000)
-    # Combine salt and hash, and convert to base64 for storage
-    return base64.b64encode(salt + hashed).decode('utf-8')
-
-def verify_password(stored_password, provided_password):
-    # Decode the stored password from base64
-    decoded = base64.b64decode(stored_password.encode('utf-8'))
-    salt = decoded[:32]  # 32 is the length of the salt
-    stored_hashed = decoded[32:]
-    # Hash the provided password with the same salt
-    hashed = hashlib.pbkdf2_hmac('sha256', provided_password.encode('utf-8'), salt, 100000)
-    return hashed == stored_hashed
 
 def get_cors_headers():
     return {
@@ -132,43 +108,7 @@ def save_score(body):
             'headers': get_cors_headers(),
             'body': json.dumps({'error': str(e)})
         }
-    
-def register_user(body):
-    username = body.get('username')
-    password = body.get('password')
-    
-    if not username or not password:
-        return {
-            'statusCode': 400,
-            'headers': get_cors_headers(),
-            'body': json.dumps({'error': 'Username and password are required'})
-        }
-    
-    # Check if username already exists
-    response = users_table.get_item(Key={'username': username})
-    if 'Item' in response:
-        return {
-            'statusCode': 400,
-            'headers': get_cors_headers(),
-            'body': json.dumps({'error': 'Username already exists'})
-        }
-    
-    # Hash the password
-    hashed_password = hash_password(password)
-    
-    # Store the new user
-    users_table.put_item(Item={
-        'username': username,
-        'password': hashed_password
-    })
-    
-    return {
-        'statusCode': 200,
-        'headers': get_cors_headers(),
-        'body': json.dumps({'message': 'User registered successfully'})
-    }
 
-def login_user(body):
     username = body.get('username')
     password = body.get('password')
     
