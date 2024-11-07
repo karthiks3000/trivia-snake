@@ -12,6 +12,8 @@
     "@aws-cdk/aws-lambda": "^1.204.0",
     "@aws-cdk/aws-s3": "^1.204.0",
     "@aws-cdk/aws-s3-deployment": "^1.204.0",
+    "@radix-ui/react-dialog": "^1.1.2",
+    "@radix-ui/react-label": "^2.1.0",
     "@radix-ui/react-slot": "^1.1.0",
     "@testing-library/jest-dom": "^5.17.0",
     "@testing-library/react": "^13.4.0",

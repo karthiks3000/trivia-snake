@@ -7,12 +7,20 @@ import boto3
 from boto3.dynamodb.conditions import Key
 import os
 import hashlib
+import uuid
 
 
 dynamodb = boto3.resource('dynamodb')
+s3 = boto3.client('s3')
+bedrock = boto3.client('bedrock-runtime')
+
 leaderboard_table_name = os.environ['LEADERBOARD_TABLE_NAME']
+adventure_table_name = os.environ['ADVENTURE_TABLE_NAME']
+adventure_images_bucket = os.environ['ADVENTURE_IMAGES_BUCKET']
+
 # Create the table objects
 leaderboard_table = dynamodb.Table(leaderboard_table_name)
+adventure_table = dynamodb.Table(adventure_table_name)
 
 
 # Custom JSON encoder to handle Decimal types
@@ -31,6 +39,22 @@ def lambda_handler(event, context):
             return get_leaderboard()
         elif http_method == 'POST':
             return save_score(json.loads(event['body']))
+    elif path == '/adventures':
+        if http_method == 'GET':
+            return get_adventures()
+        elif http_method == 'POST':
+            return create_adventure(json.loads(event['body']))
+    elif path.startswith('/adventures/'):
+        adventure_id = path.split('/')[-1]
+        if http_method == 'GET':
+            return get_adventure(adventure_id)
+        elif http_method == 'PUT':
+            return update_adventure(adventure_id, json.loads(event['body']))
+        elif http_method == 'DELETE':
+            return delete_adventure(adventure_id)
+    elif path == '/generate-quiz':
+        if http_method == 'POST':
+            return generate_quiz(json.loads(event['body']))
     
     return {
         'statusCode': 400,
@@ -42,8 +66,159 @@ def get_cors_headers():
     return {
         'Access-Control-Allow-Headers': 'Content-Type',
         'Access-Control-Allow-Origin': '*',
-        'Access-Control-Allow-Methods': 'OPTIONS,POST,GET'
+        'Access-Control-Allow-Methods': 'OPTIONS,POST,GET,PUT,DELETE'
     }
+
+def get_adventures():
+    response = adventure_table.scan()
+    adventures = response['Items']
+    
+    return {
+        'statusCode': 200,
+        'headers': get_cors_headers(),
+        'body': json.dumps(adventures, cls=DecimalEncoder)
+    }
+
+def create_adventure(body):
+    adventure_id = str(uuid.uuid4())
+    name = body.get('name')
+    image_url = body.get('image_url')
+    questions = body.get('questions')
+    
+    if not name or not image_url or not questions:
+        return {
+            'statusCode': 400,
+            'headers': get_cors_headers(),
+            'body': json.dumps({'error': 'Name, image URL, and questions are required'})
+        }
+    
+    adventure_table.put_item(
+        Item={
+            'id': adventure_id,
+            'name': name,
+            'image_url': image_url,
+            'questions': questions
+        }
+    )
+    
+    return {
+        'statusCode': 201,
+        'headers': get_cors_headers(),
+        'body': json.dumps({'id': adventure_id})
+    }
+
+def get_adventure(adventure_id):
+    response = adventure_table.get_item(Key={'id': adventure_id})
+    adventure = response.get('Item')
+    
+    if not adventure:
+        return {
+            'statusCode': 404,
+            'headers': get_cors_headers(),
+            'body': json.dumps({'error': 'Adventure not found'})
+        }
+    
+    return {
+        'statusCode': 200,
+        'headers': get_cors_headers(),
+        'body': json.dumps(adventure, cls=DecimalEncoder)
+    }
+
+def update_adventure(adventure_id, body):
+    name = body.get('name')
+    image_url = body.get('image_url')
+    questions = body.get('questions')
+    
+    if not name or not image_url or not questions:
+        return {
+            'statusCode': 400,
+            'headers': get_cors_headers(),
+            'body': json.dumps({'error': 'Name, image URL, and questions are required'})
+        }
+    
+    adventure_table.update_item(
+        Key={'id': adventure_id},
+        UpdateExpression='SET #name = :name, image_url = :image_url, questions = :questions',
+        ExpressionAttributeNames={'#name': 'name'},
+        ExpressionAttributeValues={
+            ':name': name,
+            ':image_url': image_url,
+            ':questions': questions
+        }
+    )
+    
+    return {
+        'statusCode': 200,
+        'headers': get_cors_headers(),
+        'body': json.dumps({'message': 'Adventure updated successfully'})
+    }
+
+def delete_adventure(adventure_id):
+    adventure_table.delete_item(Key={'id': adventure_id})
+    
+    return {
+        'statusCode': 200,
+        'headers': get_cors_headers(),
+        'body': json.dumps({'message': 'Adventure deleted successfully'})
+    }
+
+def generate_quiz(body):
+    prompt = body.get('prompt')
+    
+    if not prompt:
+        return {
+            'statusCode': 400,
+            'headers': get_cors_headers(),
+            'body': json.dumps({'error': 'Prompt is required'})
+        }
+    
+    try:
+        # Prepare the prompt for the Bedrock AI model
+        bedrock_prompt = f"Generate a trivia quiz with 10 questions based on the following topic: {prompt}. For each question, provide 4 options and indicate the correct answer. Format the response as a JSON array of objects, where each object has 'question', 'options' (array of 4 strings), and 'correctAnswer' (string matching one of the options) keys."
+
+        # Call Bedrock AI service
+        response = bedrock.invoke_model(
+            modelId="amazon.titan-text-express-v1",
+            contentType="application/json",
+            accept="application/json",
+            body=json.dumps({
+                "inputText": bedrock_prompt,
+                "textGenerationConfig": {
+                    "maxTokenCount": 4096,
+                    "stopSequences": [],
+                    "temperature": 0.7,
+                    "topP": 1
+                }
+            })
+        )
+
+        # Parse the response
+        response_body = json.loads(response['body'].read())
+        generated_text = response_body['results'][0]['outputText']
+
+        # Extract the JSON part from the generated text
+        json_start = generated_text.find('[')
+        json_end = generated_text.rfind(']') + 1
+        questions_json = generated_text[json_start:json_end]
+
+        # Parse the JSON and validate the structure
+        questions = json.loads(questions_json)
+        for question in questions:
+            if not all(key in question for key in ('question', 'options', 'correctAnswer')):
+                raise ValueError("Invalid question format in generated quiz")
+
+        return {
+            'statusCode': 200,
+            'headers': get_cors_headers(),
+            'body': json.dumps({'questions': questions})
+        }
+    except Exception as e:
+        print(f"Error generating quiz: {str(e)}")
+        return {
+            'statusCode': 500,
+            'headers': get_cors_headers(),
+            'body': json.dumps({'error': 'Failed to generate quiz'})
+        }
 
 def get_leaderboard():
     try:

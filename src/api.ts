@@ -3,6 +3,7 @@
 import axios, { AxiosResponse } from 'axios';
 import { LeaderboardEntry } from './components/Leaderboard';
 import { fetchAuthSession } from 'aws-amplify/auth';
+import { Adventure } from './components/AdventureSelection';
 
 const API_URL = process.env.REACT_APP_API_URL || 'https://your-default-api-url.com';
 
@@ -57,6 +58,12 @@ apiClient.interceptors.response.use(
 
 // API functions
 export const api = {
+
+  registerUser: (data: UserCredentials): Promise<AxiosResponse<any>> => 
+    apiClient.post('/register', data),
+
+  loginUser: (data: UserCredentials): Promise<AxiosResponse<any>> => 
+    apiClient.post('/login', data),
   // Leaderboard
   getLeaderboard: (): Promise<AxiosResponse<LeaderboardEntry[]>> => 
     apiClient.get('/leaderboard'),
@@ -64,12 +71,25 @@ export const api = {
   addScore: (data: LeaderboardEntry): Promise<AxiosResponse<any>> => 
     apiClient.post('/leaderboard', data),
 
-  // User management
-  registerUser: (data: UserCredentials): Promise<AxiosResponse<any>> => 
-    apiClient.post('/register', data),
+  // Adventures
+  getAdventures: (): Promise<AxiosResponse<Adventure[]>> =>
+    apiClient.get('/adventures'),
+  
+  getAdventure: (id: string): Promise<AxiosResponse<any>> =>
+    apiClient.get(`/adventures/${id}`),
 
-  loginUser: (data: UserCredentials): Promise<AxiosResponse<any>> => 
-    apiClient.post('/login', data),
+  createAdventure: (data: any): Promise<AxiosResponse<any>> =>
+    apiClient.post('/adventures', data),
+
+  updateAdventure: (id: string, data: any): Promise<AxiosResponse<any>> =>
+    apiClient.put(`/adventures/${id}`, data),
+
+  deleteAdventure: (id: string): Promise<AxiosResponse<any>> =>
+    apiClient.delete(`/adventures/${id}`),
+
+  // Quiz generation
+  generateQuiz: (data: any): Promise<AxiosResponse<any>> =>
+    apiClient.post('/generate-quiz', data),
 
   // Add other API calls as needed
 };

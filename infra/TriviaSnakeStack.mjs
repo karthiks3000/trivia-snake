@@ -19,6 +19,20 @@ export class TriviaSnakeStack extends cdk.Stack {
     super(scope, id, props);
     const allowedURLs = ['http://localhost:3000', 'https://dj3xrj5xgqclx.cloudfront.net'];
 
+    // S3 bucket for storing adventure images
+    const adventureImagesBucket = new s3.Bucket(this, 'TriviaSnakeResources', {
+      publicReadAccess: true,
+      blockPublicAccess: s3.BlockPublicAccess.BLOCK_ACLS,
+      websiteIndexDocument: 'index.html',
+      cors: [
+        {
+          allowedMethods: [s3.HttpMethods.GET],
+          allowedOrigins: allowedURLs,
+          allowedHeaders: ['*'],
+        },
+      ],
+    });
+
     // Cognito User Pool
     const userPool = new cognito.UserPool(this, 'TriviaSnakeUserPool', {
       userPoolName: 'trivia-snake-user-pool',
@@ -95,6 +109,12 @@ export class TriviaSnakeStack extends cdk.Stack {
       billingMode: dynamodb.BillingMode.PAY_PER_REQUEST,
     });
 
+    // DynamoDB table for storing adventure data
+    const adventureTable = new dynamodb.Table(this, 'AdventureTable', {
+      partitionKey: { name: 'id', type: dynamodb.AttributeType.STRING },
+      billingMode: dynamodb.BillingMode.PAY_PER_REQUEST,
+    });
+
     // Lambda Function
     const leaderboardFunction = new lambda.Function(this, 'LeaderboardFunction', {
       runtime: lambda.Runtime.PYTHON_3_8,
@@ -102,12 +122,16 @@ export class TriviaSnakeStack extends cdk.Stack {
       code: lambda.Code.fromAsset(path.join(__dirname, '..', 'lambda')),
       environment: {
         LEADERBOARD_TABLE_NAME: leaderboardTable.tableName,
+        ADVENTURE_TABLE_NAME: adventureTable.tableName,
+        ADVENTURE_IMAGES_BUCKET: adventureImagesBucket.bucketName,
         USER_POOL_ID: userPool.userPoolId,
         USER_POOL_CLIENT_ID: userPoolClient.userPoolClientId,
       },
     });
 
     leaderboardTable.grantReadWriteData(leaderboardFunction);
+    adventureTable.grantReadWriteData(leaderboardFunction);
+    adventureImagesBucket.grantReadWrite(leaderboardFunction);
     
     // API Gateway
     const api = new apigateway.RestApi(this, 'TriviaSnakeApi', {
@@ -127,29 +151,94 @@ export class TriviaSnakeStack extends cdk.Stack {
 
     // Create resources and add methods
     const leaderboardResource = api.root.addResource('leaderboard');
+    const adventuresResource = api.root.addResource('adventures');
+    const adventureIdResource = adventuresResource.addResource('{id}');
+    const generateQuizResource = api.root.addResource('generate-quiz');
     
-    // Add methods (GET, POST) for each resource with Cognito authorization
-    [leaderboardResource].forEach(resource => {
-      ['GET', 'POST'].forEach(method => {
-        resource.addMethod(method, new apigateway.LambdaIntegration(leaderboardFunction, {
-          requestTemplates: { "application/json": '{ "statusCode": "200" }' },
-          integrationResponses: [{
-            statusCode: '200',
-            responseParameters: {
-              'method.response.header.Access-Control-Allow-Origin': "'*'",
-            },
-          }],
-        }), {
-          authorizer: authorizer,
-          authorizationType: apigateway.AuthorizationType.COGNITO,
-          methodResponses: [{
-            statusCode: '200',
-            responseParameters: {
-              'method.response.header.Access-Control-Allow-Origin': true,
-            },
-          }],
-        });
+    // Add methods for leaderboard resource
+    ['GET', 'POST'].forEach(method => {
+      leaderboardResource.addMethod(method, new apigateway.LambdaIntegration(leaderboardFunction, {
+        requestTemplates: { "application/json": '{ "statusCode": "200" }' },
+        integrationResponses: [{
+          statusCode: '200',
+          responseParameters: {
+            'method.response.header.Access-Control-Allow-Origin': "'*'",
+          },
+        }],
+      }), {
+        authorizer: authorizer,
+        authorizationType: apigateway.AuthorizationType.COGNITO,
+        methodResponses: [{
+          statusCode: '200',
+          responseParameters: {
+            'method.response.header.Access-Control-Allow-Origin': true,
+          },
+        }],
       });
+    });
+
+    // Add methods for adventures resource
+    ['GET', 'POST'].forEach(method => {
+      adventuresResource.addMethod(method, new apigateway.LambdaIntegration(leaderboardFunction, {
+        requestTemplates: { "application/json": '{ "statusCode": "200" }' },
+        integrationResponses: [{
+          statusCode: '200',
+          responseParameters: {
+            'method.response.header.Access-Control-Allow-Origin': "'*'",
+          },
+        }],
+      }), {
+        authorizer: authorizer,
+        authorizationType: apigateway.AuthorizationType.COGNITO,
+        methodResponses: [{
+          statusCode: '200',
+          responseParameters: {
+            'method.response.header.Access-Control-Allow-Origin': true,
+          },
+        }],
+      });
+    });
+
+    // Add methods for adventure/{id} resource
+    ['GET', 'PUT', 'DELETE'].forEach(method => {
+      adventureIdResource.addMethod(method, new apigateway.LambdaIntegration(leaderboardFunction, {
+        requestTemplates: { "application/json": '{ "statusCode": "200" }' },
+        integrationResponses: [{
+          statusCode: '200',
+          responseParameters: {
+            'method.response.header.Access-Control-Allow-Origin': "'*'",
+          },
+        }],
+      }), {
+        authorizer: authorizer,
+        authorizationType: apigateway.AuthorizationType.COGNITO,
+        methodResponses: [{
+          statusCode: '200',
+          responseParameters: {
+            'method.response.header.Access-Control-Allow-Origin': true,
+          },
+        }],
+      });
+    });
+
+    // Add method for generate-quiz resource
+    generateQuizResource.addMethod('POST', new apigateway.LambdaIntegration(leaderboardFunction, {
+      requestTemplates: { "application/json": '{ "statusCode": "200" }' },
+      integrationResponses: [{
+        statusCode: '200',
+        responseParameters: {
+          'method.response.header.Access-Control-Allow-Origin': "'*'",
+        },
+      }],
+    }), {
+      authorizer: authorizer,
+      authorizationType: apigateway.AuthorizationType.COGNITO,
+      methodResponses: [{
+        statusCode: '200',
+        responseParameters: {
+          'method.response.header.Access-Control-Allow-Origin': true,
+        },
+      }],
     });
 
     // S3 bucket for frontend
