@@ -1,12 +1,14 @@
 import { useEffect, useState } from 'react';
 import { fetchUserAttributes } from 'aws-amplify/auth';
 import { Authenticator, ThemeProvider, Theme, View, useAuthenticator } from '@aws-amplify/ui-react';
+import { BrowserRouter as Router, Route, Routes, Navigate } from 'react-router-dom';
 
 import '@aws-amplify/ui-react/styles.css';
 import Game from './components/Game';
 import AdventureSelection from './components/AdventureSelection';
 import './aws-config';
 import Header from './components/Header';
+import LandingPage from './components/LandingPage';
 
 const theme: Theme = {
   name: 'custom-theme',
@@ -104,43 +106,56 @@ function AuthenticatedApp() {
 function App() {
   return (
     <ThemeProvider theme={theme}>
-      <div className="min-h-screen bg-gray-100">
-        <Authenticator
-          components={{
-            Header() {
-              return (
-                <View textAlign="center" padding={4}>
-                  <h2 className="text-2xl font-bold mb-4">Welcome to Trivia Snake</h2>
-                </View>
-              );
-            },
-            Footer() {
-              return (
-                <View textAlign="center" padding={4}>
-                  <p className="text-sm text-gray-600">© 2024 Trivia Snake. All rights reserved.</p>
-                </View>
-              );
-            },
-          }}
-        >
-          {({ user }) => (
-            user ? (
-              <AuthenticatedApp />
-            ) : (
-              <div className="flex justify-center items-center min-h-screen">
-                <div className="relative py-3 sm:max-w-xl sm:mx-auto">
-                  <div className="absolute inset-0 bg-gradient-to-r from-cyan-400 to-light-blue-500 shadow-lg transform -skew-y-6 sm:skew-y-0 sm:-rotate-6 sm:rounded-3xl"></div>
-                  <div className="relative px-4 py-10 bg-white shadow-lg sm:rounded-3xl sm:p-20">
-                    {/* Authenticator content */}
-                  </div>
-                </div>
-              </div>
-            )
-          )}
-        </Authenticator>
-      </div>
+      <Authenticator.Provider>
+        <Router>
+          <div className="min-h-screen bg-gray-100">
+            <Routes>
+              <Route path="/" element={<LandingPage />} />
+              <Route path="/signin" element={<AuthFlow />} />
+              <Route path="/game" element={<ProtectedRoute><AuthenticatedApp /></ProtectedRoute>} />
+            </Routes>
+          </div>
+        </Router>
+      </Authenticator.Provider>
     </ThemeProvider>
   );
+}
+
+function AuthFlow() {
+  return (
+    <Authenticator
+      components={{
+        Header() {
+          return (
+            <View textAlign="center" padding={4}>
+              <h2 className="text-2xl font-bold mb-4">Welcome to Trivia Snake</h2>
+            </View>
+          );
+        },
+        Footer() {
+          return (
+            <View textAlign="center" padding={4}>
+              <p className="text-sm text-gray-600">© 2024 Trivia Snake. All rights reserved.</p>
+            </View>
+          );
+        },
+      }}
+    >
+      {({ user }) => (
+        <>{user ? <Navigate to="/game" replace /> : null}</>
+      )}
+    </Authenticator>
+  );
+}
+
+function ProtectedRoute({ children }: { children: React.ReactNode }) {
+  const { user } = useAuthenticator((context) => [context.user]);
+  
+  if (!user) {
+    return <Navigate to="/signin" replace />;
+  }
+  
+  return <>{children}</>;
 }
 
 export default App;
