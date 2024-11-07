@@ -1,6 +1,7 @@
 // Leaderboard.tsx
 import React from 'react';
 import { useGameContext } from './GameContext';
+import { Button } from './ui/Button';
 
 interface LeaderboardEntry {
   userId: string;
@@ -13,11 +14,16 @@ interface LeaderboardProps {
   entries: LeaderboardEntry[];
 }
 
+interface LeaderboardProps {
+  entries: LeaderboardEntry[];
+}
+
 const Leaderboard: React.FC<LeaderboardProps> = ({ entries }) => {
   const { formatTime } = useGameContext();
 
   return (
-    <table className="w-full mb-4">
+    <div className="mb-4">
+      <table className="w-full mb-4">
       <thead>
         <tr className="bg-gray-200">
           <th className="p-2 text-left">Rank</th>
@@ -37,6 +43,7 @@ const Leaderboard: React.FC<LeaderboardProps> = ({ entries }) => {
         ))}
       </tbody>
     </table>
+  </div>
   );
 };
 

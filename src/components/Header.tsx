@@ -30,42 +30,28 @@ const Header: React.FC<HeaderProps> = ({
             <h1 className="text-2xl font-bold text-white">Trivia Snake</h1>
           </div>
           
-          <div className="flex flex-wrap items-center gap-4 text-sm">
+          <div className="flex-grow text-center">
             {selectedAdventure && !showAdventureSelection && (
-              <div className="hidden md:flex items-center gap-2">
-                <span className="text-white/80">Current Adventure:</span>
-                <span className="text-white font-medium">
-                  {formatAdventureName(selectedAdventure)}
-                </span>
+              <div className="text-white font-medium">
+                {formatAdventureName(selectedAdventure)}
               </div>
             )}
+          </div>
+          
+          <div className="flex items-center gap-3">
+            <span className="text-white/90">
+              Welcome, <span className="font-medium">{userProfile?.username}</span>
+            </span>
             
-            <div className="flex items-center gap-3">
-              <span className="text-white/90">
-                Welcome, <span className="font-medium">{userProfile?.username}</span>
-              </span>
-              
-              {!showAdventureSelection && (
-                <Button 
-                  variant="secondary" 
-                  size="sm"
-                  onClick={onChangeAdventure}
-                >
-                  <MoveHorizontal className="w-4 h-4 mr-2" />
-                  Change Adventure
-                </Button>
-              )}
-              
-              <Button 
-                variant="ghost" 
-                size="sm"
-                onClick={onSignOut}
-                className="text-white hover:bg-white/10"
-              >
-                <LogOut className="w-4 h-4 mr-2" />
-                Sign out
-              </Button>
-            </div>
+            <Button 
+              variant="ghost" 
+              size="sm"
+              onClick={onSignOut}
+              className="text-white hover:bg-white/10"
+            >
+              <LogOut className="w-4 h-4 mr-2" />
+              Sign out
+            </Button>
           </div>
         </div>
       </div>

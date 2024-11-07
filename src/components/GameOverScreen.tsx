@@ -1,9 +1,9 @@
 import React from 'react';
 import { useGameContext } from './GameContext';
 import { Leaderboard, LeaderboardEntry } from './Leaderboard';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from './ui/Card';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from './ui/Card';
 import { Button } from './ui/Button';
-import { Trophy, Clock, Redo } from 'lucide-react';
+import { Trophy, Clock, Redo, ArrowRightLeft } from 'lucide-react';
 
 interface GameOverScreenProps {
   resetGame: () => void;
@@ -16,15 +16,23 @@ const GameOverScreen: React.FC<GameOverScreenProps> = ({ resetGame, leaderboard 
   return (
     <div className="flex justify-center items-center min-h-[calc(100vh-120px)] p-4">
       <Card className="w-full max-w-2xl">
-        <CardHeader>
+        <CardHeader className="flex flex-row items-center justify-between">
+          <Button onClick={resetGame} className="bg-indigo-600 hover:bg-indigo-700">
+            <Redo className="h-4 w-4 mr-2" />
+            Play Again
+          </Button>
           <CardTitle className="text-3xl font-bold text-center">
             {gameWon ? "Congratulations!" : "Game Over"}
           </CardTitle>
-          <CardDescription className="text-xl text-center">
-            {gameWon ? "You've completed all questions!" : "Better luck next time!"}
-          </CardDescription>
+          <Button onClick={() => window.location.reload()}>
+            <ArrowRightLeft className="h-4 w-4 mr-2" />
+            Adventure
+          </Button>
         </CardHeader>
-        <CardContent className="space-y-6">
+        <CardDescription className="text-xl text-center mt-2">
+          {gameWon ? "You've completed all questions!" : "Better luck next time!"}
+        </CardDescription>
+        <CardContent className="space-y-6 mt-4">
           <div className="flex justify-center space-x-8">
             <div className="flex items-center">
               <Trophy className="h-8 w-8 text-yellow-500 mr-2" />
@@ -46,12 +54,6 @@ const GameOverScreen: React.FC<GameOverScreenProps> = ({ resetGame, leaderboard 
             <Leaderboard entries={leaderboard} />
           </div>
         </CardContent>
-        <CardFooter className="flex justify-center">
-          <Button onClick={resetGame} className="bg-indigo-600 hover:bg-indigo-700">
-            <Redo className="h-4 w-4 mr-2" />
-            Play Again
-          </Button>
-        </CardFooter>
       </Card>
     </div>
   );
