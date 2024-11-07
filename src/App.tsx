@@ -5,7 +5,7 @@ import { BrowserRouter as Router, Route, Routes, Navigate } from 'react-router-d
 
 import '@aws-amplify/ui-react/styles.css';
 import Game from './components/Game';
-import AdventureSelection from './components/AdventureSelection';
+import AdventureSelection, { Adventure } from './components/AdventureSelection';
 import './aws-config';
 import Header from './components/Header';
 import LandingPage from './components/LandingPage';
@@ -56,7 +56,7 @@ export interface UserProfile {
 
 function AuthenticatedApp() {
   const { signOut } = useAuthenticator((context) => [context.user]);
-  const [selectedAdventure, setSelectedAdventure] = useState('');
+  const [selectedAdventure, setSelectedAdventure] = useState<Adventure>();
   const [userProfile, setUserProfile] = useState<UserProfile>();
   const [showAdventureSelection, setShowAdventureSelection] = useState(true);
 

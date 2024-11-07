@@ -132,6 +132,16 @@ export class TriviaSnakeStack extends cdk.Stack {
     leaderboardTable.grantReadWriteData(leaderboardFunction);
     adventureTable.grantReadWriteData(leaderboardFunction);
     adventureImagesBucket.grantReadWrite(leaderboardFunction);
+
+    // Grant permissions to call Amazon Bedrock
+    leaderboardFunction.addToRolePolicy(new iam.PolicyStatement({
+      effect: iam.Effect.ALLOW,
+      actions: [
+        'bedrock:InvokeModel',
+        'bedrock:ListFoundationModels',
+      ],
+      resources: ['*'], // You might want to restrict this to specific model ARNs if known
+    }));
     
     // API Gateway
     const api = new apigateway.RestApi(this, 'TriviaSnakeApi', {

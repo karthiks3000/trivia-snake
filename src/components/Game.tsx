@@ -8,22 +8,10 @@ import api from '../api';
 import { LeaderboardEntry } from './Leaderboard';
 import { UserProfile } from '../App';
 import { Card, CardContent } from './ui/Card';
-
-
-
-interface TriviaQuestion {
-  question: string;
-  options: string[];
-  correctAnswer: string;
-}
-
-interface Adventure {
-  adventure: string;
-  questions: TriviaQuestion[];
-}
+import { Adventure } from './AdventureSelection';
 
 interface GameProps {
-  adventure: string;
+  adventure: Adventure;
   userProfile: UserProfile;
 }
 
@@ -59,7 +47,7 @@ const GameInner: React.FC<GameProps> = ({ adventure: selectedAdventure }) => {
   const fetchQuestions = useCallback(async () => {
     setIsLoading(true);
     try {
-      const response = await api.getAdventure(selectedAdventure);
+      const response = await api.getAdventure(selectedAdventure.id);
       if (!response.data) throw new Error(`HTTP error! status: ${response.status}`);
       const data: Adventure = await response.data;
       setAdventure(data);

@@ -178,23 +178,20 @@ def generate_quiz(body):
 
         # Call Bedrock AI service
         response = bedrock.invoke_model(
-            modelId="amazon.titan-text-express-v1",
+            modelId="anthropic.claude-v2:1",
             contentType="application/json",
             accept="application/json",
             body=json.dumps({
-                "inputText": bedrock_prompt,
-                "textGenerationConfig": {
-                    "maxTokenCount": 4096,
-                    "stopSequences": [],
-                    "temperature": 0.7,
-                    "topP": 1
-                }
+                "prompt": bedrock_prompt,
+                "max_tokens_to_sample": 4096,
+                "temperature": 0.7,
+                "top_p": 1
             })
         )
 
         # Parse the response
         response_body = json.loads(response['body'].read())
-        generated_text = response_body['results'][0]['outputText']
+        generated_text = response_body['completion']
 
         # Extract the JSON part from the generated text
         json_start = generated_text.find('[')

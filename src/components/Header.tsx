@@ -2,11 +2,12 @@ import React from 'react';
 import { Button } from './ui/Button';
 import { UserProfile } from '../App';
 import { LogOut, MoveHorizontal } from 'lucide-react';
+import { Adventure } from './AdventureSelection';
 
 interface HeaderProps {
   userProfile?: UserProfile;
   showAdventureSelection: boolean;
-  selectedAdventure: string;
+  selectedAdventure?: Adventure;
   onChangeAdventure: () => void;
   onSignOut: () => void;
 }
@@ -33,7 +34,7 @@ const Header: React.FC<HeaderProps> = ({
           <div className="flex-grow text-center">
             {selectedAdventure && !showAdventureSelection && (
               <div className="text-white font-medium">
-                {formatAdventureName(selectedAdventure)}
+                {formatAdventureName(selectedAdventure.name)}
               </div>
             )}
           </div>

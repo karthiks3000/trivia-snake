@@ -10,15 +10,22 @@ import { Textarea } from "./ui/Textarea";
 import api from '../api';
 import { Alert, AlertDescription, AlertTitle } from "./ui/Alert";
 
-interface AdventureSelectionProps {
-  userProfile: UserProfile | undefined;
-  onAdventureSelect: (adventure: string) => void;
-}
 
+export interface TriviaQuestion {
+  question: string;
+  options: string[];
+  correctAnswer: string;
+}
 export interface Adventure {
   id: string;
   name: string;
   image_url: string;
+  questions: TriviaQuestion[];
+}
+
+interface AdventureSelectionProps {
+  userProfile: UserProfile | undefined;
+  onAdventureSelect: (adventure: Adventure) => void;
 }
 
 interface Question {
@@ -121,7 +128,7 @@ const AdventureSelection: React.FC<AdventureSelectionProps> = ({ userProfile, on
               </CardTitle>
             </CardContent>
             <CardFooter>
-              <Button className="w-full" onClick={() => onAdventureSelect(adventure.id)}>
+              <Button className="w-full" onClick={() => onAdventureSelect(adventure)}>
                 Start Adventure
               </Button>
             </CardFooter>
