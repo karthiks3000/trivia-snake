@@ -56,6 +56,15 @@ const Grid: React.FC<GridProps> = ({
       return true;
     }
 
+    // Check self collision
+    for (let i = 1; i < snake.length; i++) {
+      if (head[0] === snake[i][0] && head[1] === snake[i][1]) {
+        hasCollidedRef.current = true;
+        onWrongAnswer();
+        return true;
+      }
+    }
+
     // Check food collision
     for (let food of foods) {
       if (Math.abs(head[0] - food.position[0]) < 5 && Math.abs(head[1] - food.position[1]) < 5) {

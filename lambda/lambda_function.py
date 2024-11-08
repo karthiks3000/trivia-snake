@@ -258,10 +258,20 @@ def get_leaderboard():
         # Get the top scores (up to 10)
         top_scores = sorted_items[:10] if len(sorted_items) > 10 else sorted_items
         
+        # Ensure we're returning both userId and username
+        leaderboard_entries = [{
+            'userId': item['userId'],
+            'username': item['username'],
+            'score': item['score'],
+            'time': item['time'],
+            'adventureId': item['adventureId'],
+            'adventureName': item['adventureName']
+        } for item in top_scores]
+        
         return {
             'statusCode': 200,
             'headers': get_cors_headers(),
-            'body': json.dumps(top_scores, cls=DecimalEncoder)
+            'body': json.dumps(leaderboard_entries, cls=DecimalEncoder)
         }
     except Exception as e:
         return {
@@ -271,23 +281,25 @@ def get_leaderboard():
         }
 
 def save_score(body):
+    user_id = body.get('userId')
     username = body.get('username')
     score = body.get('score')
     time = body.get('time')
     adventure_id = body.get('adventureId')
     adventure_name = body.get('adventureName')
     
-    if not username or score is None or time is None or not adventure_id or not adventure_name:
+    if not user_id or not username or score is None or time is None or not adventure_id or not adventure_name:
         return {
             'statusCode': 400,
             'headers': get_cors_headers(),
-            'body': json.dumps({'error': 'Username, score, time, adventureId, and adventureName are required'})
+            'body': json.dumps({'error': 'UserId, username, score, time, adventureId, and adventureName are required'})
         }
     
     try:
-        # Get the current record for the user
-        response = leaderboard_table.get_item(Key={'username': username})
+        # Get the current record for the user and adventure
+        response = leaderboard_table.get_item(Key={'userId': user_id, 'adventureId': adventure_id})
         new_item = {
+            'userId': user_id,
             'username': username,
             'score': Decimal(str(score)),  # Convert to Decimal for DynamoDB
             'time': Decimal(str(time)),  # Convert to Decimal for DynamoDB
@@ -301,7 +313,7 @@ def save_score(body):
             if score > current_record['score'] or (score == current_record['score'] and time < current_record['time']):
                 leaderboard_table.put_item(Item=new_item)
         else:
-            # If no record exists, create a new one
+            # If no record exists for this user and adventure, create a new one
             leaderboard_table.put_item(Item=new_item)
         
         return {
@@ -315,18 +327,6 @@ def save_score(body):
             'headers': get_cors_headers(),
             'body': json.dumps({'error': str(e)})
         }
-
-    username = body.get('username')
-    password = body.get('password')
-    
-    if not username or not password:
-        return {
-            'statusCode': 400,
-            'headers': get_cors_headers(),
-            'body': json.dumps({'error': 'Username and password are required'})
-        }
-    
-    # Retrieve user from database
     response = users_table.get_item(Key={'username': username})
     if 'Item' not in response:
         return {

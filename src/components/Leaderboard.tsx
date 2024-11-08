@@ -6,7 +6,7 @@ import { formatTime } from '../lib/utils';
 
 interface LeaderboardEntry {
   userId: string;
-  username: string;
+  username?: string;
   score: number;
   time: number;
   adventureId: string;
@@ -38,7 +38,7 @@ const Leaderboard: React.FC<LeaderboardProps> = ({ entries, adventureId }) => {
         </thead>
         <tbody>
           {filteredEntries.map((entry, index) => (
-            <tr key={index} className="border-b">
+            <tr key={`${entry.userId}-${entry.adventureId}`} className="border-b">
               <td className="p-2">{index + 1}</td>
               <td className="p-2">{entry.username}</td>
               <td className="p-2">{entry.adventureName}</td>

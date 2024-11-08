@@ -36,8 +36,8 @@ export const GameProvider: React.FC<GameProviderProps> = ({ children, userProfil
       return;
     }
     const newEntry = {
-      username: userProfile.username,
       userId: userProfile.userId,
+      username: userProfile.username,
       score: finalScore,
       time: elapsedTime,
       adventureId: adventure.id!,
@@ -48,7 +48,7 @@ export const GameProvider: React.FC<GameProviderProps> = ({ children, userProfil
     } catch (error) {
       console.error('Error updating leaderboard:', error);
     }
-  }, [userProfile, elapsedTime]);
+  }, [elapsedTime]);
 
 
   return (

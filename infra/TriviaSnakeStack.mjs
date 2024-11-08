@@ -8,6 +8,7 @@ import * as cloudfront from 'aws-cdk-lib/aws-cloudfront';
 import * as origins from 'aws-cdk-lib/aws-cloudfront-origins';
 import * as cognito from 'aws-cdk-lib/aws-cognito';
 import * as iam from 'aws-cdk-lib/aws-iam';
+import * as cloudwatch from 'aws-cdk-lib/aws-cloudwatch';
 import * as path from 'path';
 import { fileURLToPath } from 'url';
 
@@ -105,7 +106,8 @@ export class TriviaSnakeStack extends cdk.Stack {
 
     // DynamoDB Tables
     const leaderboardTable = new dynamodb.Table(this, 'LeaderboardTable', {
-      partitionKey: { name: 'username', type: dynamodb.AttributeType.STRING },
+      partitionKey: { name: 'userId', type: dynamodb.AttributeType.STRING },
+      sortKey: { name: 'adventureId', type: dynamodb.AttributeType.STRING },
       billingMode: dynamodb.BillingMode.PAY_PER_REQUEST,
     });
 
@@ -335,5 +337,85 @@ export class TriviaSnakeStack extends cdk.Stack {
     new cdk.CfnOutput(this, 'CloudFrontUrl', { value: `https://${distribution.domainName}` });
     new cdk.CfnOutput(this, 'UserPoolId', { value: userPool.userPoolId });
     new cdk.CfnOutput(this, 'UserPoolClientId', { value: userPoolClient.userPoolClientId });
+
+    // Lambda Invocations Alarm (across all functions)
+    new cloudwatch.Alarm(this, 'LambdaInvocationsAlarm', {
+      metric: new cloudwatch.Metric({
+        namespace: 'AWS/Lambda',
+        metricName: 'Invocations',
+        statistic: 'Sum',
+        period: cdk.Duration.hours(1),
+      }),
+      threshold: 1000000 / 720, // Approximately 1 million per month, divided by 720 hours in a 30-day month
+      evaluationPeriods: 24,
+      alarmDescription: 'Alarm if Lambda invocations across all functions exceed 1 million per month',
+    });
+
+    // DynamoDB Consumed Read Capacity Units Alarm (across all tables)
+    new cloudwatch.Alarm(this, 'DynamoDBReadCapacityUnitsAlarm', {
+      metric: new cloudwatch.Metric({
+        namespace: 'AWS/DynamoDB',
+        metricName: 'ConsumedReadCapacityUnits',
+        statistic: 'Sum',
+        period: cdk.Duration.hours(1),
+      }),
+      threshold: 18600 / 720, // 18600 per month, divided by 720 hours in a 30-day month
+      evaluationPeriods: 24,
+      alarmDescription: 'Alarm if DynamoDB read capacity units across all tables exceed 18600 per month',
+    });
+
+    // DynamoDB Consumed Write Capacity Units Alarm (across all tables)
+    new cloudwatch.Alarm(this, 'DynamoDBWriteCapacityUnitsAlarm', {
+      metric: new cloudwatch.Metric({
+        namespace: 'AWS/DynamoDB',
+        metricName: 'ConsumedWriteCapacityUnits',
+        statistic: 'Sum',
+        period: cdk.Duration.hours(1),
+      }),
+      threshold: 18600 / 720, // 18600 per month, divided by 720 hours in a 30-day month
+      evaluationPeriods: 24,
+      alarmDescription: 'Alarm if DynamoDB write capacity units across all tables exceed 18600 per month',
+    });
+
+    // S3 Total Bucket Size Alarm (across all buckets)
+    new cloudwatch.Alarm(this, 'S3TotalStorageAlarm', {
+      metric: new cloudwatch.Metric({
+        namespace: 'AWS/S3',
+        metricName: 'BucketSizeBytes',
+        statistic: 'Sum',
+        period: cdk.Duration.hours(1),
+      }),
+      threshold: 5 * 1024 * 1024 * 1024, // 5 GB in bytes
+      evaluationPeriods: 24,
+      comparisonOperator: cloudwatch.ComparisonOperator.GREATER_THAN_THRESHOLD,
+      alarmDescription: 'Alarm if total S3 storage across all buckets exceeds 5 GB',
+    });
+
+    // API Gateway Requests Alarm (across all APIs)
+    new cloudwatch.Alarm(this, 'ApiGatewayRequestsAlarm', {
+      metric: new cloudwatch.Metric({
+        namespace: 'AWS/ApiGateway',
+        metricName: 'Count',
+        statistic: 'Sum',
+        period: cdk.Duration.hours(1),
+      }),
+      threshold: 1000000 / 720, // 1 million per month, divided by 720 hours in a 30-day month
+      evaluationPeriods: 24,
+      alarmDescription: 'Alarm if API Gateway requests across all APIs exceed 1 million per month',
+    });
+
+    // CloudFront Data Transfer Alarm (across all distributions)
+    new cloudwatch.Alarm(this, 'CloudFrontDataTransferAlarm', {
+      metric: new cloudwatch.Metric({
+        namespace: 'AWS/CloudFront',
+        metricName: 'BytesDownloaded',
+        statistic: 'Sum',
+        period: cdk.Duration.hours(1),
+      }),
+      threshold: (1024 * 1024 * 1024 * 1024) / 720, // 1 TB per month, divided by 720 hours in a 30-day month
+      evaluationPeriods: 24,
+      alarmDescription: 'Alarm if CloudFront data transfer across all distributions exceeds 1 TB per month',
+    });
+
   }
 }

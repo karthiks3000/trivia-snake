@@ -68,7 +68,7 @@ export const api = {
   getLeaderboard: (): Promise<AxiosResponse<LeaderboardEntry[]>> => 
     apiClient.get('/leaderboard'),
 
-  addScore: (data: LeaderboardEntry): Promise<AxiosResponse<any>> => 
+  addScore: (data: Omit<LeaderboardEntry, 'username'>): Promise<AxiosResponse<any>> => 
     apiClient.post('/leaderboard', data),
 
   // Adventures
