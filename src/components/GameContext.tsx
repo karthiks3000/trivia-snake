@@ -2,6 +2,7 @@
 import React, { createContext, useContext, useState, useCallback, ReactNode, useEffect } from 'react';
 import api from '../api';
 import { UserProfile } from '../App';
+import { Adventure } from './AdventureSelection';
 
 interface GameContextType {
   // Add all the state and functions you want to share
@@ -14,8 +15,7 @@ interface GameContextType {
   setGameOver: React.Dispatch<React.SetStateAction<boolean>>;
   gameWon: boolean;
   setGameWon: React.Dispatch<React.SetStateAction<boolean>>;
-  updateLeaderboard: (finalScore: number) => Promise<void>;
-  formatTime: (seconds: number) => string;
+  updateLeaderboard: (finalScore: number, adventure: Adventure) => Promise<void>;
 }
 
 const GameContext = createContext<GameContextType | undefined>(undefined);
@@ -30,8 +30,19 @@ export const GameProvider: React.FC<GameProviderProps> = ({ children, userProfil
   const [gameOver, setGameOver] = useState(false);
   const [gameWon, setGameWon] = useState(false);
 
-  const updateLeaderboard = useCallback(async (finalScore: number) => {
-    const newEntry = { username: userProfile.username, userId: userProfile.userId, score: finalScore, time: elapsedTime };
+  const updateLeaderboard = useCallback(async (finalScore: number, adventure: Adventure) => {
+    if (!adventure) {
+      console.error('No adventure selected');
+      return;
+    }
+    const newEntry = {
+      username: userProfile.username,
+      userId: userProfile.userId,
+      score: finalScore,
+      time: elapsedTime,
+      adventureId: adventure.id!,
+      adventureName: adventure.name!
+    };
     try {
       await api.addScore(newEntry);
     } catch (error) {
@@ -39,16 +50,11 @@ export const GameProvider: React.FC<GameProviderProps> = ({ children, userProfil
     }
   }, [userProfile, elapsedTime]);
 
-  const formatTime = (seconds: number) => {
-    const minutes = Math.floor(seconds / 60);
-    const remainingSeconds = seconds % 60;
-    return `${minutes}:${remainingSeconds < 10 ? '0' : ''}${remainingSeconds}`;
-  };
 
   return (
     <GameContext.Provider value={{
       score, setScore, elapsedTime, setElapsedTime, userProfile,
-      gameOver, setGameOver, gameWon, setGameWon, updateLeaderboard, formatTime
+      gameOver, setGameOver, gameWon, setGameWon, updateLeaderboard
     }}>
       {children}
     </GameContext.Provider>

@@ -4,13 +4,14 @@ import Question from './Question';
 import Grid from './Grid';
 import { Card, CardContent, CardHeader, CardTitle } from "./ui/Card";
 import { Clock, Trophy } from 'lucide-react';
+import { formatTime } from '../lib/utils';
 
 const GameScreen: React.FC<{
   currentQuestion: any,
   handleCorrectAnswer: () => void,
   handleWrongAnswer: () => void,
 }> = ({ currentQuestion, handleCorrectAnswer, handleWrongAnswer }) => {
-  const { score, elapsedTime, formatTime } = useGameContext();
+  const { score, elapsedTime } = useGameContext();
 
   return (
     <div className="flex flex-col lg:flex-row h-[calc(100vh-120px)] bg-white rounded-lg shadow-lg overflow-hidden">

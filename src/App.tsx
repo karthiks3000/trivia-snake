@@ -9,6 +9,7 @@ import AdventureSelection, { Adventure } from './components/AdventureSelection';
 import './aws-config';
 import Header from './components/Header';
 import LandingPage from './components/LandingPage';
+import LeaderboardPage from './components/LeaderboardPage';
 
 const theme: Theme = {
   name: 'custom-theme',
@@ -59,6 +60,7 @@ function AuthenticatedApp() {
   const [selectedAdventure, setSelectedAdventure] = useState<Adventure>();
   const [userProfile, setUserProfile] = useState<UserProfile>();
   const [showAdventureSelection, setShowAdventureSelection] = useState(true);
+  const [showLeaderboard, setShowLeaderboard] = useState(false);
 
   useEffect(() => {
     async function fetchUsername() {
@@ -81,11 +83,20 @@ function AuthenticatedApp() {
         userProfile={userProfile}
         showAdventureSelection={showAdventureSelection}
         selectedAdventure={selectedAdventure}
-        onChangeAdventure={() => setShowAdventureSelection(true)}
+        onChangeAdventure={() => {
+          setShowAdventureSelection(true);
+          setShowLeaderboard(false);
+        }}
+        onShowLeaderboard={() => {
+          setShowLeaderboard(true);
+          setShowAdventureSelection(false);
+        }}
         onSignOut={signOut}
       />
       <main className="flex-grow container mx-auto px-4 py-8">
-        {showAdventureSelection ? (
+        {showLeaderboard ? (
+          <LeaderboardPage />
+        ) : showAdventureSelection ? (
           <div className="bg-white rounded-lg shadow-lg p-6">
             <AdventureSelection
               userProfile={userProfile}

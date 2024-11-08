@@ -96,7 +96,7 @@ const GameInner: React.FC<GameProps> = ({ adventure: selectedAdventure }) => {
       if (currentQuestionIndex === adventure!.questions.length - 1) {
         setGameWon(true);
         setGameOver(true);
-        updateLeaderboardFromContext(newScore).then(() => fetchLeaderboard());
+        updateLeaderboardFromContext(newScore, selectedAdventure).then(() => fetchLeaderboard());
       } else {
         setCurrentQuestionIndex(prevIndex => prevIndex + 1);
       }
@@ -106,7 +106,7 @@ const GameInner: React.FC<GameProps> = ({ adventure: selectedAdventure }) => {
 
   const handleWrongAnswer = () => {
     setGameOver(true);
-    updateLeaderboardFromContext(score).then(() => fetchLeaderboard());
+    updateLeaderboardFromContext(score, selectedAdventure).then(() => fetchLeaderboard());
   };
 
   useEffect(() => {

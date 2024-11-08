@@ -1,7 +1,7 @@
 import React from 'react';
 import { Button } from './ui/Button';
 import { UserProfile } from '../App';
-import { LogOut, MoveHorizontal } from 'lucide-react';
+import { LogOut, MoveHorizontal, Trophy } from 'lucide-react';
 import { Adventure } from './AdventureSelection';
 
 interface HeaderProps {
@@ -9,6 +9,7 @@ interface HeaderProps {
   showAdventureSelection: boolean;
   selectedAdventure?: Adventure;
   onChangeAdventure: () => void;
+  onShowLeaderboard: () => void;
   onSignOut: () => void;
 }
 
@@ -17,6 +18,7 @@ const Header: React.FC<HeaderProps> = ({
   showAdventureSelection,
   selectedAdventure,
   onChangeAdventure,
+  onShowLeaderboard,
   onSignOut
 }) => {
   const formatAdventureName = (name: string) => {
@@ -40,6 +42,26 @@ const Header: React.FC<HeaderProps> = ({
           </div>
           
           <div className="flex items-center gap-3">
+            <Button 
+              variant="ghost" 
+              size="sm"
+              onClick={onChangeAdventure}
+              className="text-white hover:bg-white/10"
+            >
+              <MoveHorizontal className="w-4 h-4 mr-2" />
+              Change Adventure
+            </Button>
+            
+            <Button 
+              variant="ghost" 
+              size="sm"
+              onClick={onShowLeaderboard}
+              className="text-white hover:bg-white/10"
+            >
+              <Trophy className="w-4 h-4 mr-2" />
+              Leaderboard
+            </Button>
+            
             <span className="text-white/90">
               Welcome, <span className="font-medium">{userProfile?.username}</span>
             </span>

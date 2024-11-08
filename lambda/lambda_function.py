@@ -274,12 +274,14 @@ def save_score(body):
     username = body.get('username')
     score = body.get('score')
     time = body.get('time')
+    adventure_id = body.get('adventureId')
+    adventure_name = body.get('adventureName')
     
-    if not username or score is None or time is None:
+    if not username or score is None or time is None or not adventure_id or not adventure_name:
         return {
             'statusCode': 400,
             'headers': get_cors_headers(),
-            'body': json.dumps({'error': 'Username, score, and time are required'})
+            'body': json.dumps({'error': 'Username, score, time, adventureId, and adventureName are required'})
         }
     
     try:
@@ -288,7 +290,9 @@ def save_score(body):
         new_item = {
             'username': username,
             'score': Decimal(str(score)),  # Convert to Decimal for DynamoDB
-            'time': Decimal(str(time))  # Convert to Decimal for DynamoDB
+            'time': Decimal(str(time)),  # Convert to Decimal for DynamoDB
+            'adventureId': adventure_id,
+            'adventureName': adventure_name
         }
         
         if 'Item' in response:

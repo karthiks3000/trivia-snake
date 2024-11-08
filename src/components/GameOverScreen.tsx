@@ -4,6 +4,7 @@ import { Leaderboard, LeaderboardEntry } from './Leaderboard';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from './ui/Card';
 import { Button } from './ui/Button';
 import { Trophy, Clock, Redo, ArrowRightLeft } from 'lucide-react';
+import { formatTime } from '../lib/utils';
 
 interface GameOverScreenProps {
   resetGame: () => void;
@@ -11,7 +12,7 @@ interface GameOverScreenProps {
 }
 
 const GameOverScreen: React.FC<GameOverScreenProps> = ({ resetGame, leaderboard }) => {
-  const { score, elapsedTime, gameWon, formatTime } = useGameContext();
+  const { score, elapsedTime, gameWon } = useGameContext();
 
   return (
     <div className="flex justify-center items-center min-h-[calc(100vh-120px)] p-4">
