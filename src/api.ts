@@ -78,8 +78,13 @@ export const api = {
   getAdventure: (id: string): Promise<AxiosResponse<any>> =>
     apiClient.get(`/adventures/${id}`),
 
-  createAdventure: (data: any): Promise<AxiosResponse<any>> =>
-    apiClient.post('/adventures', data),
+  createAdventure: (data: { name: string; description: string; image: string; questions: any[] }): Promise<AxiosResponse<any>> => {
+    return apiClient.post('/adventures', data, {
+      headers: {
+        'Content-Type': 'application/json'
+      }
+    });
+  },
 
   updateAdventure: (id: string, data: any): Promise<AxiosResponse<any>> =>
     apiClient.put(`/adventures/${id}`, data),

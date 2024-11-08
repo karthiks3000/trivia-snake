@@ -6,21 +6,24 @@ import { Plus, Loader2 } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "./ui/Dialog";
 import { Input } from "./ui/Input";
 import { Label } from "./ui/Label";
-import { Textarea } from "./ui/Textarea";
 import api from '../api';
 import { Alert, AlertDescription, AlertTitle } from "./ui/Alert";
-
+import QuestionForm from './QuestionForm';
+import ImageUpload from './ImageUpload';
 
 export interface TriviaQuestion {
   question: string;
   options: string[];
   correctAnswer: string;
 }
+
 export interface Adventure {
-  id: string;
+  id?: string;
   name: string;
+  description: string;
   image_url: string;
   questions: TriviaQuestion[];
+  createdBy?: string;
 }
 
 interface AdventureSelectionProps {
@@ -28,21 +31,15 @@ interface AdventureSelectionProps {
   onAdventureSelect: (adventure: Adventure) => void;
 }
 
-interface Question {
-  question: string;
-  options: string[];
-  correctAnswer: string;
-}
-
 const AdventureSelection: React.FC<AdventureSelectionProps> = ({ userProfile, onAdventureSelect }) => {
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [newAdventureName, setNewAdventureName] = useState('');
-  const [newAdventurePrompt, setNewAdventurePrompt] = useState('');
+  const [newAdventureDescription, setNewAdventureDescription] = useState('');
+  const [coverImage, setCoverImage] = useState<File | null>(null);
+  const [questions, setQuestions] = useState<TriviaQuestion[]>([]);
   const [adventures, setAdventures] = useState<Adventure[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [generatedQuestions, setGeneratedQuestions] = useState<Question[] | null>(null);
-  const [isGeneratingQuiz, setIsGeneratingQuiz] = useState(false);
 
   useEffect(() => {
     fetchAdventures();
@@ -62,32 +59,48 @@ const AdventureSelection: React.FC<AdventureSelectionProps> = ({ userProfile, on
   };
 
   const handleCreateAdventure = async () => {
-    try {
-      setIsGeneratingQuiz(true);
-      const response = await api.generateQuiz({ prompt: newAdventurePrompt });
-      setGeneratedQuestions(response.data);
-    } catch (err) {
-      setError('Failed to generate quiz. Please try again.');
-    } finally {
-      setIsGeneratingQuiz(false);
+    if (!coverImage) {
+      setError('Please upload a cover image.');
+      return;
     }
-  };
-
-  const handleAcceptQuiz = async () => {
-    if (!generatedQuestions) return;
-
+    if (questions.length === 0) {
+      setError('Please add at least one question.');
+      return;
+    }
     try {
       setIsLoading(true);
-      await api.createAdventure({
+      
+      // // Upload image to S3
+      // const imageUploadResponse = await api.uploadImage(coverImage);
+      // const imageUrl = imageUploadResponse.data.imageUrl;
+
+      // Create adventure object
+      let imageBase64 = '';
+      if (coverImage) {
+        const reader = new FileReader();
+        imageBase64 = await new Promise((resolve) => {
+          reader.onload = (e) => resolve(e.target?.result as string);
+          reader.readAsDataURL(coverImage);
+        });
+      }
+
+      const newAdventure = {
         name: newAdventureName,
-        image_url: '/images/custom_adventure.jpg', // You might want to allow users to upload images
-        questions: generatedQuestions
-      });
+        description: newAdventureDescription,
+        image: imageBase64,
+        questions: questions,
+        createdBy: userProfile?.userId
+      };
+
+      // Send adventure data to API
+      await api.createAdventure(newAdventure);
+      
       setIsCreateModalOpen(false);
       setNewAdventureName('');
-      setNewAdventurePrompt('');
-      setGeneratedQuestions(null);
-      await fetchAdventures(); // Refresh the list of adventures
+      setNewAdventureDescription('');
+      setCoverImage(null);
+      setQuestions([]);
+      await fetchAdventures();
     } catch (err) {
       setError('Failed to create adventure. Please try again.');
     } finally {
@@ -95,9 +108,19 @@ const AdventureSelection: React.FC<AdventureSelectionProps> = ({ userProfile, on
     }
   };
 
-  const handleRegenerateQuiz = () => {
-    setGeneratedQuestions(null);
-    handleCreateAdventure();
+  const handleQuestionChange = (index: number, updatedQuestion: TriviaQuestion) => {
+    const newQuestions = [...questions];
+    newQuestions[index] = updatedQuestion;
+    setQuestions(newQuestions);
+  };
+
+  const handleRemoveQuestion = (index: number) => {
+    const newQuestions = questions.filter((_, i) => i !== index);
+    setQuestions(newQuestions);
+  };
+
+  const addNewQuestion = () => {
+    setQuestions([...questions, { question: '', options: ['', ''], correctAnswer: '' }]);
   };
 
   if (isLoading) {
@@ -145,17 +168,17 @@ const AdventureSelection: React.FC<AdventureSelectionProps> = ({ userProfile, on
       </div>
 
       <Dialog open={isCreateModalOpen} onOpenChange={setIsCreateModalOpen}>
-        <DialogContent className="max-w-3xl">
+        <DialogContent className="max-w-4xl">
           <DialogHeader>
             <DialogTitle>Create Custom Adventure</DialogTitle>
             <DialogDescription>
-              Enter a name and prompt for your custom adventure. We'll use AI to generate a quiz based on your input.
+              Enter a name, description, upload an image, and add questions for your custom adventure.
             </DialogDescription>
           </DialogHeader>
-          <div className="grid gap-4 py-4">
+          <div className="grid gap-6 py-4">
             <div className="grid grid-cols-4 items-center gap-4">
               <Label htmlFor="name" className="text-right">
-                Name
+                Adventure Name
               </Label>
               <Input
                 id="name"
@@ -165,47 +188,45 @@ const AdventureSelection: React.FC<AdventureSelectionProps> = ({ userProfile, on
               />
             </div>
             <div className="grid grid-cols-4 items-center gap-4">
-              <Label htmlFor="prompt" className="text-right">
-                Prompt
+              <Label htmlFor="description" className="text-right">
+                Description
               </Label>
-              <Textarea
-                id="prompt"
-                value={newAdventurePrompt}
-                onChange={(e) => setNewAdventurePrompt(e.target.value)}
+              <Input
+                id="description"
+                value={newAdventureDescription}
+                onChange={(e) => setNewAdventureDescription(e.target.value)}
                 className="col-span-3"
               />
             </div>
+            <ImageUpload onImageChange={setCoverImage} />
+            <div className="space-y-4">
+              {questions.map((question, index) => (
+                <Card key={index} className="p-4">
+                  <QuestionForm
+                    question={question}
+                    index={index}
+                    onChange={handleQuestionChange}
+                    onRemove={handleRemoveQuestion}
+                  />
+                </Card>
+              ))}
+              <Button type="button" onClick={addNewQuestion} className="w-full">
+                Add Question
+              </Button>
+            </div>
           </div>
           <DialogFooter>
-            {!generatedQuestions ? (
-              <Button onClick={handleCreateAdventure} disabled={isGeneratingQuiz}>
-                {isGeneratingQuiz ? (
-                  <>
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    Generating Quiz
-                  </>
-                ) : (
-                  'Generate Quiz'
-                )}
-              </Button>
-            ) : (
-              <>
-                <Button onClick={handleRegenerateQuiz}>Regenerate Quiz</Button>
-                <Button onClick={handleAcceptQuiz}>Accept Quiz</Button>
-              </>
-            )}
+            <Button onClick={handleCreateAdventure} disabled={isLoading}>
+              {isLoading ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Creating Adventure
+                </>
+              ) : (
+                'Create Adventure'
+              )}
+            </Button>
           </DialogFooter>
-          {generatedQuestions && (
-            <div className="mt-4">
-              <h3 className="text-lg font-semibold mb-2">Generated Quiz Preview:</h3>
-              <ul className="list-decimal pl-5">
-                {generatedQuestions.slice(0, 3).map((q, index) => (
-                  <li key={index} className="mb-2">{q.question}</li>
-                ))}
-              </ul>
-              <p className="text-sm text-gray-500 mt-2">... and {generatedQuestions.length - 3} more questions</p>
-            </div>
-          )}
         </DialogContent>
       </Dialog>
     </div>

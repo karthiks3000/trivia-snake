@@ -47,7 +47,7 @@ const GameInner: React.FC<GameProps> = ({ adventure: selectedAdventure }) => {
   const fetchQuestions = useCallback(async () => {
     setIsLoading(true);
     try {
-      const response = await api.getAdventure(selectedAdventure.id);
+      const response = await api.getAdventure(selectedAdventure.id!);
       if (!response.data) throw new Error(`HTTP error! status: ${response.status}`);
       const data: Adventure = await response.data;
       setAdventure(data);

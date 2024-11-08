@@ -43,7 +43,21 @@ def lambda_handler(event, context):
         if http_method == 'GET':
             return get_adventures()
         elif http_method == 'POST':
-            return create_adventure(json.loads(event['body']))
+            if not event.get('body'):
+                return {
+                    'statusCode': 400,
+                    'headers': get_cors_headers(),
+                    'body': json.dumps({'error': 'Empty request body'})
+                }
+            try:
+                body = json.loads(event['body'])
+            except json.JSONDecodeError:
+                return {
+                    'statusCode': 400,
+                    'headers': get_cors_headers(),
+                    'body': json.dumps({'error': 'Invalid JSON in request body'})
+                }
+            return create_adventure(body)
     elif path.startswith('/adventures/'):
         adventure_id = path.split('/')[-1]
         if http_method == 'GET':
@@ -82,15 +96,32 @@ def get_adventures():
 def create_adventure(body):
     adventure_id = str(uuid.uuid4())
     name = body.get('name')
-    image_url = body.get('image_url')
+    image_data = body.get('image')
     questions = body.get('questions')
     
-    if not name or not image_url or not questions:
+    if not name or not image_data or not questions:
         return {
             'statusCode': 400,
             'headers': get_cors_headers(),
-            'body': json.dumps({'error': 'Name, image URL, and questions are required'})
+            'body': json.dumps({'error': 'Name, image data, and questions are required'})
         }
+    
+    # Decode base64 image data
+    image_binary = base64.b64decode(image_data.split(',')[1])
+    
+    # Generate a unique filename
+    image_filename = f"{adventure_id}.jpg"
+    
+    # Upload image to S3
+    s3.put_object(
+        Bucket=adventure_images_bucket,
+        Key=image_filename,
+        Body=image_binary,
+        ContentType='image/jpeg'
+    )
+    
+    # Generate the image URL
+    image_url = f"https://{adventure_images_bucket}.s3.amazonaws.com/{image_filename}"
     
     adventure_table.put_item(
         Item={
@@ -104,7 +135,7 @@ def create_adventure(body):
     return {
         'statusCode': 201,
         'headers': get_cors_headers(),
-        'body': json.dumps({'id': adventure_id})
+        'body': json.dumps({'id': adventure_id, 'image_url': image_url})
     }
 
 def get_adventure(adventure_id):

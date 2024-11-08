@@ -142,6 +142,17 @@ export class TriviaSnakeStack extends cdk.Stack {
       ],
       resources: ['*'], // You might want to restrict this to specific model ARNs if known
     }));
+
+    // Grant S3 permissions to the Lambda function
+    leaderboardFunction.addToRolePolicy(new iam.PolicyStatement({
+      effect: iam.Effect.ALLOW,
+      actions: [
+        's3:PutObject',
+        's3:GetObject',
+        's3:DeleteObject',
+      ],
+      resources: [adventureImagesBucket.arnForObjects('*')],
+    }));
     
     // API Gateway
     const api = new apigateway.RestApi(this, 'TriviaSnakeApi', {
