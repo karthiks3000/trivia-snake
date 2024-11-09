@@ -3,6 +3,7 @@ import { Button } from './ui/Button';
 import { UserProfile } from '../App';
 import { LogOut, MoveHorizontal, Trophy } from 'lucide-react';
 import { Adventure } from './AdventureSelection';
+import { Link } from 'react-router-dom';
 
 interface HeaderProps {
   userProfile?: UserProfile;
@@ -30,7 +31,9 @@ const Header: React.FC<HeaderProps> = ({
       <div className="container mx-auto px-4 py-4">
         <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
           <div className="flex items-center gap-2">
-            <h1 className="text-2xl font-bold text-white">Trivia Snake</h1>
+            <Link to="/" className="text-2xl font-bold text-white hover:text-gray-200 transition-colors">
+              Trivia Snake
+            </Link>
           </div>
           
           <div className="flex-grow text-center">

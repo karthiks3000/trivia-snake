@@ -82,7 +82,8 @@ export const api = {
     return apiClient.post('/adventures', data, {
       headers: {
         'Content-Type': 'application/json'
-      }
+      },
+      validateStatus: (status) => status >= 200 && status < 500, // Don't reject responses with status 400
     });
   },
 

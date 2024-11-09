@@ -6,8 +6,10 @@ import json
 import boto3
 from boto3.dynamodb.conditions import Key
 import os
-import hashlib
 import uuid
+import boto3
+
+bedrock = boto3.client('bedrock-runtime', region_name="us-east-1")
 
 
 dynamodb = boto3.resource('dynamodb')
@@ -83,8 +85,20 @@ def get_cors_headers():
         'Access-Control-Allow-Methods': 'OPTIONS,POST,GET,PUT,DELETE'
     }
 
-def get_adventures():
-    response = adventure_table.scan()
+def get_adventures(user_id=None):
+    if user_id:
+        # If user_id is provided, return all adventures created by the user and all verified adventures
+        response = adventure_table.scan(
+            FilterExpression='createdBy = :user_id OR verificationStatus = :verified',
+            ExpressionAttributeValues={':user_id': user_id, ':verified': 'verified'}
+        )
+    else:
+        # If no user_id is provided, return only verified adventures
+        response = adventure_table.scan(
+            FilterExpression='verificationStatus = :verified',
+            ExpressionAttributeValues={':verified': 'verified'}
+        )
+    
     adventures = response['Items']
     
     return {
@@ -94,49 +108,96 @@ def get_adventures():
     }
 
 def create_adventure(body):
-    adventure_id = str(uuid.uuid4())
-    name = body.get('name')
-    image_data = body.get('image')
-    questions = body.get('questions')
-    
-    if not name or not image_data or not questions:
+    try:
+        adventure_id = str(uuid.uuid4())
+        name = body.get('name')
+        image_data = body.get('image')
+        questions = body.get('questions')
+        created_by = body.get('createdBy')
+        
+        if not name or not image_data or not questions or not created_by:
+            return {
+                'statusCode': 400,
+                'headers': get_cors_headers(),
+                'body': json.dumps({'error': 'Name, image data, questions, and creator ID are required'})
+            }
+        
+        # Perform profanity check using Bedrock AI
+        content_to_check = f"{name}\n{json.dumps(questions)}"
+        profanity_check_result = check_profanity(content_to_check)
+        
+        if not profanity_check_result['is_appropriate']:
+            return {
+                'statusCode': 400,
+                'headers': get_cors_headers(),
+                'body': json.dumps({'error': f"Adventure content contains inappropriate language: {profanity_check_result['reason']}. Please revise and try again."})
+            }
+        
+        # Set initial verification status
+        verification_status = 'verified'
+        print('adventure verified')
+        
+        # Decode base64 image data
+        # Check if the body is base64 encoded
+        try:
+            image_binary = base64.b64decode(image_data.split(',')[1])
+        except e:
+            print("Body is not base64 encoded")
+            return {
+                'statusCode': 500,
+                'headers': get_cors_headers(),
+                'body': json.dumps({'error': str(e)})
+            }
+        
+        # Generate a unique filename
+        image_filename = f"{adventure_id}.jpg"
+        print(image_filename)
+        try:
+            # Upload image to S3
+            s3.put_object(
+                Bucket=adventure_images_bucket,
+                Key=image_filename,
+                Body=image_binary,
+                ContentType='image/jpeg'
+            )
+        except e:
+            print("error uploading to s3")
+            return {
+                'statusCode': 500,
+                'headers': get_cors_headers(),
+                'body': json.dumps({'error': str(e)})
+            }
+        
+        # Generate the image URL
+        image_url = f"https://{adventure_images_bucket}.s3.amazonaws.com/{image_filename}"
+        print(image_url)
+        adventure_table.put_item(
+            Item={
+                'id': adventure_id,
+                'name': name,
+                'image_url': image_url,
+                'questions': questions,
+                'createdBy': created_by,
+                'verificationStatus': verification_status
+            }
+        )
+        print('adventure created')
         return {
-            'statusCode': 400,
+            'statusCode': 201,
             'headers': get_cors_headers(),
-            'body': json.dumps({'error': 'Name, image data, and questions are required'})
+            'body': json.dumps({
+                'id': adventure_id,
+                'image_url': image_url,
+                'verificationStatus': verification_status,
+                'message': 'Adventure created successfully. It will be available to all users.'
+            })
         }
-    
-    # Decode base64 image data
-    image_binary = base64.b64decode(image_data.split(',')[1])
-    
-    # Generate a unique filename
-    image_filename = f"{adventure_id}.jpg"
-    
-    # Upload image to S3
-    s3.put_object(
-        Bucket=adventure_images_bucket,
-        Key=image_filename,
-        Body=image_binary,
-        ContentType='image/jpeg'
-    )
-    
-    # Generate the image URL
-    image_url = f"https://{adventure_images_bucket}.s3.amazonaws.com/{image_filename}"
-    
-    adventure_table.put_item(
-        Item={
-            'id': adventure_id,
-            'name': name,
-            'image_url': image_url,
-            'questions': questions
+    except Exception as e:
+        return {
+            'statusCode': 500,
+            'headers': get_cors_headers(),
+            'body': json.dumps({'error': str(e)})
         }
-    )
-    
-    return {
-        'statusCode': 201,
-        'headers': get_cors_headers(),
-        'body': json.dumps({'id': adventure_id, 'image_url': image_url})
-    }
 
 def get_adventure(adventure_id):
     response = adventure_table.get_item(Key={'id': adventure_id})
@@ -193,6 +254,32 @@ def delete_adventure(adventure_id):
         'body': json.dumps({'message': 'Adventure deleted successfully'})
     }
 
+def check_profanity(content):
+    prompt = f"""
+    Analyze the following content for any profanity, vulgarity, or inappropriate language and determine if the content is appropriate for all ages. Respond with only a JSON object containing:
+    1. 'is_appropriate': A boolean indicating if the content is appropriate (true) or not (false).
+    2. 'reason': If not appropriate, provide a brief explanation of why.
+    {content}
+    """
+
+    conversation = [
+        {
+            "role": "user",
+            "content": [{"text": prompt}],
+        }
+    ]
+    response = bedrock.converse(
+        modelId="us.anthropic.claude-3-5-haiku-20241022-v1:0",
+        messages=conversation,
+        inferenceConfig={"maxTokens":4096,"temperature":1},
+        additionalModelRequestFields={"top_k":250}
+    )
+
+    # Extract and print the response text.
+    response_text = response["output"]["message"]["content"][0]["text"]
+    print(response_text)
+    return json.loads(response_text)
+
 def generate_quiz(body):
     prompt = body.get('prompt')
     
@@ -209,13 +296,13 @@ def generate_quiz(body):
 
         # Call Bedrock AI service
         response = bedrock.invoke_model(
-            modelId="anthropic.claude-v2:1",
+            modelId="us.anthropic.claude-3-5-haiku-20241022-v1:0",
             contentType="application/json",
             accept="application/json",
             body=json.dumps({
                 "prompt": bedrock_prompt,
-                "max_tokens_to_sample": 4096,
-                "temperature": 0.7,
+                "max_tokens_to_sample": 500,
+                "temperature": 1,
                 "top_p": 1
             })
         )

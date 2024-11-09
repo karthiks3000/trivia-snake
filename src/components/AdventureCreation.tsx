@@ -8,6 +8,8 @@ import { UserProfile } from '../App';
 import QuestionForm, { Question } from './QuestionForm';
 import ImageUpload from './ImageUpload';
 import api from '../api';
+import { Alert, AlertTitle, AlertDescription } from "./ui/Alert";
+import { AnimatePresence, motion } from "framer-motion";
 
 interface AdventureCreationProps {
   isOpen: boolean;
@@ -23,6 +25,7 @@ const AdventureCreation: React.FC<AdventureCreationProps> = ({ isOpen, onClose, 
   const [questions, setQuestions] = useState<Question[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [errors, setErrors] = useState<{ [key: string]: string }>({});
+  const [alertInfo, setAlertInfo] = useState<{ type: 'success' | 'error', message: string } | null>(null);
 
   const validateForm = () => {
     const newErrors: { [key: string]: string } = {};
@@ -42,39 +45,47 @@ const AdventureCreation: React.FC<AdventureCreationProps> = ({ isOpen, onClose, 
   const handleCreateAdventure = async () => {
     if (!validateForm()) return;
 
-    try {
-      setIsLoading(true);
-      
-      let imageBase64 = '';
-      if (coverImage) {
-        const reader = new FileReader();
-        imageBase64 = await new Promise((resolve) => {
-          reader.onload = (e) => resolve(e.target?.result as string);
-          reader.readAsDataURL(coverImage);
-        });
-      }
+    setIsLoading(true);
+    
+    let imageBase64 = '';
+    if (coverImage) {
+      const reader = new FileReader();
+      imageBase64 = await new Promise((resolve) => {
+        reader.onload = (e) => resolve(e.target?.result as string);
+        reader.readAsDataURL(coverImage);
+      });
+    }
 
-      const newAdventure = {
-        name: newAdventureName,
-        description: newAdventureDescription,
-        image: imageBase64,
-        questions: questions,
-        createdBy: userProfile?.userId
-      };
+    const newAdventure = {
+      name: newAdventureName,
+      description: newAdventureDescription,
+      image: imageBase64,
+      questions: questions,
+      createdBy: userProfile?.userId
+    };
 
-      await api.createAdventure(newAdventure);
-      
-      onClose();
+    const response = await api.createAdventure(newAdventure);
+    
+    if (response.status === 400) {
+      setAlertInfo({ type: 'error', message: response.data.error || 'Failed to create adventure. Please check your input and try again.' });
+    } else if (response.status === 201) {
+      setAlertInfo({ type: 'success', message: response.data.message || 'Adventure created successfully. It will be available after verification.' });
       setNewAdventureName('');
       setNewAdventureDescription('');
       setCoverImage(null);
       setQuestions([]);
       setErrors({});
       onAdventureCreated();
-    } catch (err) {
-      setErrors({ submit: 'Failed to create adventure. Please try again.' });
-    } finally {
-      setIsLoading(false);
+    } else {
+      setAlertInfo({ type: 'error', message: 'Failed to create adventure. Please try again.' });
+    }
+    setIsLoading(false);
+  };
+
+  const handleCloseAlert = () => {
+    setAlertInfo(null);
+    if (alertInfo?.type === 'success') {
+      onClose();
     }
   };
 
@@ -102,6 +113,32 @@ const AdventureCreation: React.FC<AdventureCreationProps> = ({ isOpen, onClose, 
             Enter a name, description, upload an image, and add questions for your custom adventure.
           </DialogDescription>
         </DialogHeader>
+        <AnimatePresence>
+          {alertInfo && (
+            <motion.div
+              initial={{ opacity: 0, y: -20 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -20 }}
+              transition={{ duration: 0.3 }}
+            >
+              <Alert
+                variant={alertInfo.type === 'error' ? 'destructive' : 'default'}
+                className="mb-4"
+              >
+                <AlertTitle>{alertInfo.type === 'error' ? 'Error' : 'Success'}</AlertTitle>
+                <AlertDescription>{alertInfo.message}</AlertDescription>
+                <Button
+                  onClick={handleCloseAlert}
+                  variant="outline"
+                  className="mt-2"
+                  aria-label={`Close ${alertInfo.type === 'error' ? 'error' : 'success'} message`}
+                >
+                  Close
+                </Button>
+              </Alert>
+            </motion.div>
+          )}
+        </AnimatePresence>
         <div className="grid gap-6 py-4">
           <div className="space-y-4">
             <div>
