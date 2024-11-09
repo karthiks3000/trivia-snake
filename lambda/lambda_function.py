@@ -85,20 +85,8 @@ def get_cors_headers():
         'Access-Control-Allow-Methods': 'OPTIONS,POST,GET,PUT,DELETE'
     }
 
-def get_adventures(user_id=None):
-    if user_id:
-        # If user_id is provided, return all adventures created by the user and all verified adventures
-        response = adventure_table.scan(
-            FilterExpression='createdBy = :user_id OR verificationStatus = :verified',
-            ExpressionAttributeValues={':user_id': user_id, ':verified': 'verified'}
-        )
-    else:
-        # If no user_id is provided, return only verified adventures
-        response = adventure_table.scan(
-            FilterExpression='verificationStatus = :verified',
-            ExpressionAttributeValues={':verified': 'verified'}
-        )
-    
+def get_adventures():
+    response = adventure_table.scan()   
     adventures = response['Items']
     
     return {
@@ -114,12 +102,13 @@ def create_adventure(body):
         image_data = body.get('image')
         questions = body.get('questions')
         created_by = body.get('createdBy')
+        genre = body.get('genre')
         
-        if not name or not image_data or not questions or not created_by:
+        if not name or not image_data or not questions or not created_by or not genre:
             return {
                 'statusCode': 400,
                 'headers': get_cors_headers(),
-                'body': json.dumps({'error': 'Name, image data, questions, and creator ID are required'})
+                'body': json.dumps({'error': 'Name, image data, questions, creator ID, and genre are required'})
             }
         
         # Perform profanity check using Bedrock AI
@@ -178,7 +167,8 @@ def create_adventure(body):
                 'image_url': image_url,
                 'questions': questions,
                 'createdBy': created_by,
-                'verificationStatus': verification_status
+                'verificationStatus': verification_status,
+                'genre': genre
             }
         )
         print('adventure created')
@@ -220,22 +210,24 @@ def update_adventure(adventure_id, body):
     name = body.get('name')
     image_url = body.get('image_url')
     questions = body.get('questions')
+    genre = body.get('genre')
     
-    if not name or not image_url or not questions:
+    if not name or not image_url or not questions or not genre:
         return {
             'statusCode': 400,
             'headers': get_cors_headers(),
-            'body': json.dumps({'error': 'Name, image URL, and questions are required'})
+            'body': json.dumps({'error': 'Name, image URL, questions, and genre are required'})
         }
     
     adventure_table.update_item(
         Key={'id': adventure_id},
-        UpdateExpression='SET #name = :name, image_url = :image_url, questions = :questions',
+        UpdateExpression='SET #name = :name, image_url = :image_url, questions = :questions, genre = :genre',
         ExpressionAttributeNames={'#name': 'name'},
         ExpressionAttributeValues={
             ':name': name,
             ':image_url': image_url,
-            ':questions': questions
+            ':questions': questions,
+            ':genre': genre
         }
     )
     

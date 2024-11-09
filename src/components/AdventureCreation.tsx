@@ -10,6 +10,7 @@ import ImageUpload from './ImageUpload';
 import api from '../api';
 import { Alert, AlertTitle, AlertDescription } from "./ui/Alert";
 import { AnimatePresence, motion } from "framer-motion";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/Select';
 
 interface AdventureCreationProps {
   isOpen: boolean;
@@ -18,20 +19,47 @@ interface AdventureCreationProps {
   userProfile: UserProfile | undefined;
 }
 
+export const GENRES = [
+  "Arts & Literature",
+  "History & Politics",
+  "Science & Nature",
+  "Movies & TV Shows",
+  "Music & Entertainment",
+  "Sports & Games",
+  "Geography & Travel",
+  "Food & Drink",
+  "Technology & Computing",
+  "Mythology & Folklore",
+  "Pop Culture",
+  "Business & Economics",
+  "Animals & Wildlife",
+  "Space & Astronomy",
+  "Language & Words",
+  "Comics & Animation",
+  "Video Games",
+  "Ancient Civilizations",
+  "Medical & Health",
+  "Other"
+];
+
 const AdventureCreation: React.FC<AdventureCreationProps> = ({ isOpen, onClose, onAdventureCreated, userProfile }) => {
   const [newAdventureName, setNewAdventureName] = useState('');
   const [newAdventureDescription, setNewAdventureDescription] = useState('');
+  const [genre, setGenre] = useState('');
+
   const [coverImage, setCoverImage] = useState<File | null>(null);
   const [questions, setQuestions] = useState<Question[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [errors, setErrors] = useState<{ [key: string]: string }>({});
   const [alertInfo, setAlertInfo] = useState<{ type: 'success' | 'error', message: string } | null>(null);
+  
 
   const validateForm = () => {
     const newErrors: { [key: string]: string } = {};
     if (!newAdventureName.trim()) newErrors.name = 'Adventure name is required';
     if (!newAdventureDescription.trim()) newErrors.description = 'Description is required';
     if (!coverImage) newErrors.image = 'Cover image is required';
+    if (!genre) newErrors.genre = 'Genre is required';
     if (questions.length === 0) newErrors.questions = 'At least one question is required';
     questions.forEach((q, index) => {
       if (!q.question.trim()) newErrors[`question-${index}`] = 'Question is required';
@@ -61,6 +89,7 @@ const AdventureCreation: React.FC<AdventureCreationProps> = ({ isOpen, onClose, 
       description: newAdventureDescription,
       image: imageBase64,
       questions: questions,
+      genre: genre,
       createdBy: userProfile?.userId
     };
 
@@ -166,6 +195,20 @@ const AdventureCreation: React.FC<AdventureCreationProps> = ({ isOpen, onClose, 
               />
               <p className="text-sm text-gray-500 mt-1">{newAdventureDescription.length}/500</p>
               {errors.description && <p className="text-red-500 text-sm mt-1">{errors.description}</p>}
+            </div>
+            <div>
+              <Label htmlFor="genre">Genre *</Label>
+              <Select onValueChange={setGenre} value={genre}>
+                <SelectTrigger className={errors.genre ? 'border-red-500' : ''}>
+                  <SelectValue placeholder="Select a genre" />
+                </SelectTrigger>
+                <SelectContent>
+                  {GENRES.map((g) => (
+                    <SelectItem key={g} value={g}>{g}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              {errors.genre && <p className="text-red-500 text-sm mt-1">{errors.genre}</p>}
             </div>
             <ImageUpload onImageChange={setCoverImage} />
             {errors.image && <p className="text-red-500 text-sm mt-1">{errors.image}</p>}

@@ -2,11 +2,13 @@ import React, { useState, useEffect } from 'react';
 import { UserProfile } from '../App';
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "./ui/Card";
 import { Button } from "./ui/Button";
-import { Plus, Loader2 } from 'lucide-react';
+import { Plus, Loader2, Search } from 'lucide-react';
 import api from '../api';
 import { Alert, AlertDescription, AlertTitle } from "./ui/Alert";
-import AdventureCreation from './AdventureCreation';
+import AdventureCreation, { GENRES } from './AdventureCreation';
 import { Question } from './QuestionForm';
+import { Input } from "./ui/Input";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "./ui/Select";
 
 export interface Adventure {
   id?: string;
@@ -16,6 +18,7 @@ export interface Adventure {
   questions: Question[];
   createdBy?: string;
   verificationStatus?: string;
+  genre: string;
 }
 
 interface AdventureSelectionProps {
@@ -26,12 +29,23 @@ interface AdventureSelectionProps {
 const AdventureSelection: React.FC<AdventureSelectionProps> = ({ userProfile, onAdventureSelect }) => {
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [adventures, setAdventures] = useState<Adventure[]>([]);
+  const [filteredAdventures, setFilteredAdventures] = useState<Adventure[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [selectedGenre, setSelectedGenre] = useState('All');
 
   useEffect(() => {
     fetchAdventures();
   }, []);
+
+  useEffect(() => {
+    const filtered = adventures.filter(adventure => 
+      adventure.name.toLowerCase().includes(searchTerm.toLowerCase()) &&
+      (selectedGenre == 'All' || adventure.genre === selectedGenre)
+    );
+    setFilteredAdventures(filtered);
+  }, [adventures, searchTerm, selectedGenre]);
 
   const fetchAdventures = async () => {
     try {
@@ -76,8 +90,31 @@ const AdventureSelection: React.FC<AdventureSelectionProps> = ({ userProfile, on
   return (
     <div className="text-center">
       <h1 className="text-3xl font-bold mb-6">Choose Your Adventure</h1>
+      <div className="flex justify-center space-x-4 mb-6">
+        <div className="relative">
+          <Input
+            type="text"
+            placeholder="Search adventures..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="pl-10 pr-4 py-2 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+          />
+          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
+        </div>
+        <Select onValueChange={setSelectedGenre} value={selectedGenre}>
+          <SelectTrigger className="w-[180px]">
+            <SelectValue placeholder="Select a genre" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem key="All" value="All">All</SelectItem>
+            {GENRES.map((genre) => (
+              <SelectItem key={genre} value={genre}>{genre}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        {adventures.map((adventure) => (
+        {filteredAdventures.map((adventure) => (
           <Card key={adventure.id} className="overflow-hidden hover:shadow-lg transition-shadow duration-300 flex flex-col min-h-[400px]">
             <CardHeader className="p-0">
               <img src={adventure.image_url} alt={adventure.name} className="w-full h-48 object-cover" />
