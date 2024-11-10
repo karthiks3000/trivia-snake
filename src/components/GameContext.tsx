@@ -5,7 +5,6 @@ import { UserProfile } from '../App';
 import { Adventure } from './AdventureSelection';
 
 interface GameContextType {
-  // Add all the state and functions you want to share
   score: number;
   setScore: React.Dispatch<React.SetStateAction<number>>;
   elapsedTime: number;
@@ -19,43 +18,68 @@ interface GameContextType {
 }
 
 const GameContext = createContext<GameContextType | undefined>(undefined);
+
 interface GameProviderProps {
-    children: ReactNode;
-    userProfile: UserProfile;
-  }
-  
+  children: ReactNode;
+  userProfile: UserProfile;
+}
+
 export const GameProvider: React.FC<GameProviderProps> = ({ children, userProfile }) => {
   const [score, setScore] = useState(0);
   const [elapsedTime, setElapsedTime] = useState(0);
   const [gameOver, setGameOver] = useState(false);
   const [gameWon, setGameWon] = useState(false);
+  const [isUpdatingLeaderboard, setIsUpdatingLeaderboard] = useState(false);
 
   const updateLeaderboard = useCallback(async (finalScore: number, adventure: Adventure) => {
-    if (!adventure) {
-      console.error('No adventure selected');
+    if (!adventure || isUpdatingLeaderboard) {
+      console.error('No adventure selected or update already in progress');
       return;
     }
-    const newEntry = {
-      userId: userProfile.userId,
-      username: userProfile.username,
-      score: finalScore,
-      time: elapsedTime,
-      adventureId: adventure.id!,
-      adventureName: adventure.name!
-    };
+
+    setIsUpdatingLeaderboard(true);
+    
     try {
+      const newEntry = {
+        userId: userProfile.userId,
+        username: userProfile.username,
+        score: finalScore,
+        time: elapsedTime,
+        adventureId: adventure.id!,
+        adventureName: adventure.name!
+      };
+      
       await api.addScore(newEntry);
     } catch (error) {
       console.error('Error updating leaderboard:', error);
+    } finally {
+      setIsUpdatingLeaderboard(false);
     }
-  }, [elapsedTime]);
+  }, [elapsedTime, userProfile, isUpdatingLeaderboard]);
 
+  // Memoize the context value to prevent unnecessary re-renders
+  const contextValue = React.useMemo(() => ({
+    score,
+    setScore,
+    elapsedTime,
+    setElapsedTime,
+    userProfile,
+    gameOver,
+    setGameOver,
+    gameWon,
+    setGameWon,
+    updateLeaderboard
+  }), [
+    score,
+    elapsedTime,
+    userProfile,
+    gameOver,
+    gameWon,
+    updateLeaderboard
+  ]);
 
   return (
-    <GameContext.Provider value={{
-      score, setScore, elapsedTime, setElapsedTime, userProfile,
-      gameOver, setGameOver, gameWon, setGameWon, updateLeaderboard
-    }}>
+    <GameContext.Provider value={contextValue}>
       {children}
     </GameContext.Provider>
   );

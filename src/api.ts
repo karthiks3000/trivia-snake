@@ -29,7 +29,6 @@ apiClient.interceptors.request.use(
       const session = await fetchAuthSession();
       const token = session.tokens?.idToken?.toString();
       if (token) {
-        console.log('Token added to request:', token);
         config.headers['Authorization'] = `${token}`;
       }
     } catch (error) {

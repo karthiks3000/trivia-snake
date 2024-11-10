@@ -36,6 +36,12 @@ const Grid: React.FC<GridProps> = ({
   const [lastGrowthTime, setLastGrowthTime] = useState(0);
   const [lastCorrectAnswerTime, setLastCorrectAnswerTime] = useState(0);
   const hasCollidedRef = useRef(false);
+
+  // Add new state to track collision results
+  const [collisionResult, setCollisionResult] = useState<{
+    type: 'correct' | 'wrong' | null;
+    food?: { position: number[], letter: string };
+  }>({ type: null });
   
   // Generate a random position for food
   const getRandomPosition = useCallback(() => {
@@ -45,14 +51,14 @@ const Grid: React.FC<GridProps> = ({
     ];
   }, []);
 
-  // Check for collisions with walls or food
+  // Modify checkCollision to set collision state instead of directly calling handlers
   const checkCollision = (head: number[]) => {
-    if (hasCollidedRef.current) return false; // Prevent multiple collisions in the same frame
+    if (hasCollidedRef.current) return false;
     
     // Check wall collision
     if (head[0] >= 100 || head[0] < 0 || head[1] >= 100 || head[1] < 0) {
       hasCollidedRef.current = true;
-      onWrongAnswer();
+      setCollisionResult({ type: 'wrong' });
       return true;
     }
 
@@ -60,7 +66,7 @@ const Grid: React.FC<GridProps> = ({
     for (let i = 1; i < snake.length; i++) {
       if (head[0] === snake[i][0] && head[1] === snake[i][1]) {
         hasCollidedRef.current = true;
-        onWrongAnswer();
+        setCollisionResult({ type: 'wrong' });
         return true;
       }
     }
@@ -68,24 +74,40 @@ const Grid: React.FC<GridProps> = ({
     // Check food collision
     for (let food of foods) {
       if (Math.abs(head[0] - food.position[0]) < 5 && Math.abs(head[1] - food.position[1]) < 5) {
+        hasCollidedRef.current = true;
+        
         if (food.letter === correctAnswer) {
-          hasCollidedRef.current = true;
-          
-          onCorrectAnswer();
-          // Decrease snake length by 1, but ensure it doesn't go below 1
-          setSnake(prevSnake => prevSnake.length > 1 ? prevSnake.slice(0, -1) : prevSnake);
-          
+          setCollisionResult({ type: 'correct', food });
         } else {
-          hasCollidedRef.current = true;
-          onWrongAnswer();
+          setCollisionResult({ type: 'wrong', food });
         }
-        setFoods(prevFoods => prevFoods.filter(f => f !== food));
         return true;
       }
     }
 
     return false;
   };
+
+  // Add useEffect to handle collision results
+  useEffect(() => {
+    if (collisionResult.type === 'correct') {
+      onCorrectAnswer();
+      // Decrease snake length by 1, but ensure it doesn't go below 1
+      setSnake(prevSnake => prevSnake.length > 1 ? prevSnake.slice(0, -1) : prevSnake);
+      setFoods(prevFoods => prevFoods.filter(f => f !== collisionResult.food));
+    } else if (collisionResult.type === 'wrong') {
+      onWrongAnswer();
+      if (collisionResult.food) {
+        setFoods(prevFoods => prevFoods.filter(f => f !== collisionResult.food));
+      }
+    }
+    
+    // Reset collision result after handling
+    if (collisionResult.type) {
+      setCollisionResult({ type: null });
+    }
+  }, [collisionResult, onCorrectAnswer, onWrongAnswer]);
+
 
   // Move the snake
   const moveSnake = useCallback(() => {
