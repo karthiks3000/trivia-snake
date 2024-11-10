@@ -72,6 +72,9 @@
   },
   "devDependencies": {
     "@babel/plugin-proposal-private-property-in-object": "7.21.11",
+    "@graphql-codegen/cli": "^5.0.3",
+    "@graphql-codegen/typescript": "^4.1.1",
+    "@graphql-codegen/typescript-operations": "^4.3.1",
     "@shadcn/ui": "^0.0.4",
     "autoprefixer": "^10.4.20",
     "aws-cdk": "^2.165.0",

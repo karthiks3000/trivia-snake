@@ -1,38 +1,70 @@
-import React, { useState, useCallback, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { GameProvider, useGameContext } from './GameContext';
 import LoadingScreen from './LoadingScreen';
 import ErrorScreen from './ErrorScreen';
 import GameOverScreen from './GameOverScreen';
 import GameScreen from './GameScreen';
+import MultiplayerLobby from './MultiplayerLobby';
 import api from '../api';
 import { LeaderboardEntry } from './Leaderboard';
 import { UserProfile } from '../App';
 import { Card, CardContent } from './ui/Card';
 import { Adventure } from './AdventureSelection';
+import { generateClient } from '@aws-amplify/api';
+import { GraphQLQuery, GraphQLSubscription } from '@aws-amplify/api';
+import MultiplayerGame from './MultiplayerGame';
+import SinglePlayerGame from './SinglePlayerGame';
 
 interface GameProps {
   adventure: Adventure;
   userProfile: UserProfile;
 }
 
-const GameInner: React.FC<GameProps> = ({ adventure: selectedAdventure }) => {
+const GameInner: React.FC<GameProps> = ({ adventure: selectedAdventure, userProfile }) => {
   const { 
-    setScore, 
-    setGameOver, 
-    setGameWon, 
-    updateLeaderboard: updateLeaderboardFromContext,
-    score,
-    elapsedTime,
+    isMultiplayer,
+    setIsMultiplayer,
+    sessionId,
+    setSessionId,
+    setScore,
+    setPlayer2Score,
+    setGameOver,
+    setGameWon,
     setElapsedTime,
-    userProfile,
+    setPlayer2Profile,
+    setCurrentQuestionIndex,
+    updateLeaderboard,
+    score,
     gameOver,
   } = useGameContext();
 
-  const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
-  const [leaderboard, setLeaderboard] = useState<LeaderboardEntry[]>([]);
-  const [adventure, setAdventure] = useState<Adventure | null>(null);
-  const [error, setError] = useState<string | null>(null);
+  const [showGameModeSelection, setShowGameModeSelection] = useState(true);
+  const [showMultiplayerLobby, setShowMultiplayerLobby] = useState(false);
+  const [questionTimer, setQuestionTimer] = useState(10);
   const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [adventure, setAdventure] = useState<Adventure | null>(null);
+  const [leaderboard, setLeaderboard] = useState<LeaderboardEntry[]>([]);
+
+  const client = useMemo(() => generateClient(), []);
+
+  useEffect(() => {
+    let timer: NodeJS.Timeout;
+    if (isMultiplayer && sessionId) {
+      timer = setInterval(() => {
+        setQuestionTimer((prevTimer) => {
+          if (prevTimer > 0) {
+            return prevTimer - 1;
+          } else {
+            // Time's up, handle as wrong answer
+            handleWrongAnswer();
+            return 10;
+          }
+        });
+      }, 1000);
+    }
+    return () => { if (timer) clearInterval(timer); };
+  }, [isMultiplayer, sessionId]);
 
   const fetchLeaderboard = useCallback(async () => {
     try {
@@ -66,8 +98,8 @@ const GameInner: React.FC<GameProps> = ({ adventure: selectedAdventure }) => {
   }, [fetchQuestions, fetchLeaderboard]);
 
   const currentQuestion = useMemo(() => {
-    if (adventure && currentQuestionIndex < adventure.questions.length) {
-      const question = adventure.questions[currentQuestionIndex];
+    if (adventure && adventure.questions.length > 0) {
+      const question = adventure.questions[0]; // Get first question for now
       const shuffledOptions = [...question.options].sort(() => Math.random() - 0.5);
       const correctAnswerIndex = shuffledOptions.findIndex(option => option === question.correctAnswer);
       return { 
@@ -78,56 +110,100 @@ const GameInner: React.FC<GameProps> = ({ adventure: selectedAdventure }) => {
       };
     }
     return null;
-  }, [adventure, currentQuestionIndex]);
+  }, [adventure]);
 
   const resetGame = useCallback(() => {
     setCurrentQuestionIndex(0);
     setScore(0);
+    setPlayer2Score(0);
     setGameOver(false);
     setGameWon(false);
     setElapsedTime(0);
+    if (isMultiplayer) {
+      setSessionId(null);
+      setPlayer2Profile(null);
+      setIsMultiplayer(false);
+    }
     fetchQuestions();
-  }, [setScore, setGameOver, setGameWon, setElapsedTime, fetchQuestions]);
+  }, [setScore, setPlayer2Score, setGameOver, setGameWon, setElapsedTime, fetchQuestions, isMultiplayer, setSessionId, setPlayer2Profile, setIsMultiplayer, setCurrentQuestionIndex]);
 
-  const handleCorrectAnswer = () => {
+  const handleCorrectAnswer = useCallback(() => {
     setScore(prevScore => {
       const newScore = prevScore + 1;
-      console.log("incrementing score to " + newScore);
-      if (currentQuestionIndex === adventure!.questions.length - 1) {
+      if (adventure && adventure.questions.length === 1) {
         setGameWon(true);
         setGameOver(true);
-        updateLeaderboardFromContext(newScore, selectedAdventure).then(() => fetchLeaderboard());
-      } else {
-        setCurrentQuestionIndex(prevIndex => prevIndex + 1);
+        updateLeaderboard(newScore, selectedAdventure).then(() => fetchLeaderboard());
       }
       return newScore;
     });
-  };
+    setQuestionTimer(10);
+  }, [adventure, setScore, setGameWon, setGameOver, selectedAdventure, fetchLeaderboard]);
 
-  const handleWrongAnswer = () => {
+  const handleWrongAnswer = useCallback(() => {
     setGameOver(true);
-    updateLeaderboardFromContext(score, selectedAdventure).then(() => fetchLeaderboard());
-  };
+    updateLeaderboard(score, selectedAdventure).then(() => fetchLeaderboard());
+  }, [score, selectedAdventure, setGameOver, fetchLeaderboard]);
 
-  useEffect(() => {
-    let timer: NodeJS.Timeout;
-    if (!gameOver) {
-      timer = setInterval(() => setElapsedTime(prevTime => prevTime + 1), 1000);
-    }
-    return () => { if (timer) clearInterval(timer); };
-  }, [gameOver, setElapsedTime]);
+  if (showMultiplayerLobby) {
+    return <MultiplayerLobby />;
+  }
+
+  if (isMultiplayer && sessionId) {
+    return <MultiplayerGame sessionId={sessionId} userProfile={{
+      userId: userProfile.userId,
+      isHost: false
+    }} />;
+  }
+
+  if (showGameModeSelection) {
+    return (
+      <div className="flex flex-col items-center justify-center h-screen">
+        <h1 className="text-3xl font-bold mb-8">Choose Game Mode</h1>
+        <div className="space-x-4">
+          <button
+            onClick={() => {
+              setShowMultiplayerLobby(true);
+              setShowGameModeSelection(false);
+              setIsMultiplayer(true);
+            }}
+            className="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded"
+          >
+            Play Multiplayer
+          </button>
+          <button
+            onClick={() => {
+              setIsMultiplayer(false);
+              setSessionId(null);
+              setShowGameModeSelection(false);
+            }}
+            className="bg-green-500 hover:bg-green-700 text-white font-bold py-2 px-4 rounded"
+          >
+            Play Single Player
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  // Show SinglePlayerGame when not in multiplayer mode
+  if (!isMultiplayer && adventure && !showGameModeSelection) {
+    return <SinglePlayerGame adventure={adventure!} />;
+  }
 
   if (isLoading) return <LoadingScreen />;
   if (error) return <ErrorScreen />;
   if (gameOver) return <GameOverScreen resetGame={resetGame} leaderboard={leaderboard} />;
+
   if (currentQuestion) {
     return (
-      <Card className="w-full h-full">
-        <CardContent className="p-0">
+      <Card className="w-full h-full flex">
+        <CardContent className="p-0 flex-grow">
           <GameScreen
             currentQuestion={currentQuestion}
             handleCorrectAnswer={handleCorrectAnswer}
             handleWrongAnswer={handleWrongAnswer}
+            questionTimer={questionTimer}
           />
         </CardContent>
       </Card>

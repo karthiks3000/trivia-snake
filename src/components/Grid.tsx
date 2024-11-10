@@ -12,7 +12,7 @@ const GridContainer: React.FC<React.PropsWithChildren<{}>> = ({ children }) => (
   </div>
 );
 
-interface GridProps {
+export interface GridProps {
   options: string[];
   correctAnswer: string;
   onCorrectAnswer: () => void;
