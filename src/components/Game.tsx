@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import { useLocation } from 'react-router-dom';
 import { GameProvider, useGameContext } from './GameContext';
 import LoadingScreen from './LoadingScreen';
 import ErrorScreen from './ErrorScreen';
@@ -7,20 +8,19 @@ import GameScreen from './GameScreen';
 import MultiplayerLobby from './MultiplayerLobby';
 import api from '../api';
 import { LeaderboardEntry } from './Leaderboard';
-import { UserProfile } from '../App';
 import { Card, CardContent } from './ui/Card';
-import { Adventure } from './AdventureSelection';
 import { generateClient } from '@aws-amplify/api';
-import { GraphQLQuery, GraphQLSubscription } from '@aws-amplify/api';
 import MultiplayerGame from './MultiplayerGame';
 import SinglePlayerGame from './SinglePlayerGame';
+import { Adventure, UserProfile } from '../interface';
 
 interface GameProps {
-  adventure: Adventure;
   userProfile: UserProfile;
 }
 
-const GameInner: React.FC<GameProps> = ({ adventure: selectedAdventure, userProfile }) => {
+const GameInner: React.FC<GameProps> = ({ userProfile }) => {
+  const location = useLocation();
+  const selectedAdventure = location.state?.adventure as Adventure;
   const { 
     isMultiplayer,
     setIsMultiplayer,
@@ -146,12 +146,12 @@ const GameInner: React.FC<GameProps> = ({ adventure: selectedAdventure, userProf
   }, [score, selectedAdventure, setGameOver, fetchLeaderboard]);
 
   if (showMultiplayerLobby) {
-    return <MultiplayerLobby />;
+    return <MultiplayerLobby adventure={adventure!} />;
   }
 
   if (isMultiplayer && sessionId) {
-    return <MultiplayerGame sessionId={sessionId} userProfile={{
-      userId: userProfile.userId,
+    return <MultiplayerGame userProfile={{
+      userId: '',
       isHost: false
     }} />;
   }
@@ -188,7 +188,7 @@ const GameInner: React.FC<GameProps> = ({ adventure: selectedAdventure, userProf
 
   // Show SinglePlayerGame when not in multiplayer mode
   if (!isMultiplayer && adventure && !showGameModeSelection) {
-    return <SinglePlayerGame adventure={adventure!} />;
+    return <SinglePlayerGame />;
   }
 
   if (isLoading) return <LoadingScreen />;
@@ -213,10 +213,10 @@ const GameInner: React.FC<GameProps> = ({ adventure: selectedAdventure, userProf
   return null;
 };
 
-const Game: React.FC<GameProps> = ({ adventure, userProfile }) => {
+const Game: React.FC<GameProps> = ({ userProfile }) => {
   return (
     <GameProvider userProfile={userProfile}>
-      <GameInner adventure={adventure} userProfile={userProfile} />
+      <GameInner userProfile={userProfile} />
     </GameProvider>
   );
 };

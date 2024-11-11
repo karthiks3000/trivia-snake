@@ -9,7 +9,7 @@ export interface CreateGameSessionMutation {
     id: string;
     hostId: string;
     adventureId: string;
-    status: string;
+    sessionStatus: string;
     currentQuestionIndex: number;
     hostScore: number;
     guestScore: number;
@@ -24,7 +24,7 @@ export interface JoinGameSessionMutation {
     hostId: string;
     guestId: string;
     adventureId: string;
-    status: string;
+    sessionStatus: string;
     currentQuestionIndex: number;
     hostScore: number;
     guestScore: number;
@@ -36,7 +36,7 @@ export interface JoinGameSessionMutation {
 export interface StartGameSessionMutation {
   startGameSession: {
     id: string;
-    status: string;
+    sessionStatus: string;
     currentQuestionIndex: number;
     updatedAt: string;
   };
@@ -50,7 +50,7 @@ export interface AnswerQuestionMutation {
     currentQuestionIndex: number;
     hostScore: number;
     guestScore: number;
-    status: string;
+    sessionStatus: string;
     updatedAt: string;
   };
 }
@@ -71,7 +71,7 @@ export const answerQuestion = (input: AnswerQuestionInput) => {
         currentQuestionIndex
         hostScore
         guestScore
-        status
+        sessionStatus
         updatedAt
       }
     }
@@ -80,5 +80,27 @@ export const answerQuestion = (input: AnswerQuestionInput) => {
   return client.graphql<GraphQLQuery<AnswerQuestionMutation>>({
     query: mutation,
     variables: input
+  });
+};
+
+export const startGameSession = (sessionId: string) => {
+  const mutation = /* GraphQL */ `
+    mutation StartGameSession($sessionId: ID!) {
+      startGameSession(sessionId: $sessionId) {
+        id
+        hostId
+        guestId
+        currentQuestionIndex
+        hostScore
+        guestScore
+        sessionStatus
+        updatedAt
+      }
+    }
+  `;
+
+  return client.graphql<GraphQLQuery<StartGameSessionMutation>>({
+    query: mutation,
+    variables: { sessionId }
   });
 };

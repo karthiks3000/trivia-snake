@@ -1,14 +1,15 @@
 import * as cdk from 'aws-cdk-lib';
-import * as apigateway from 'aws-cdk-lib/aws-apigateway';
-import * as lambda from 'aws-cdk-lib/aws-lambda';
+import * as appsync from 'aws-cdk-lib/aws-appsync';
 import * as dynamodb from 'aws-cdk-lib/aws-dynamodb';
+import * as lambda from 'aws-cdk-lib/aws-lambda';
+import * as apigateway from 'aws-cdk-lib/aws-apigateway';
 import * as s3 from 'aws-cdk-lib/aws-s3';
 import * as s3deploy from 'aws-cdk-lib/aws-s3-deployment';
 import * as cloudfront from 'aws-cdk-lib/aws-cloudfront';
 import * as origins from 'aws-cdk-lib/aws-cloudfront-origins';
 import * as cognito from 'aws-cdk-lib/aws-cognito';
 import * as iam from 'aws-cdk-lib/aws-iam';
-import * as cloudwatch from 'aws-cdk-lib/aws-cloudwatch';
+import * as logs from 'aws-cdk-lib/aws-logs';
 import * as path from 'path';
 import { fileURLToPath } from 'url';
 
@@ -18,6 +19,7 @@ const __dirname = path.dirname(__filename);
 export class TriviaSnakeStack extends cdk.Stack {
   constructor(scope, id, props) {
     super(scope, id, props);
+
     const allowedURLs = ['http://localhost:3000', 'https://dj3xrj5xgqclx.cloudfront.net'];
 
     // S3 bucket for storing adventure images
@@ -65,7 +67,7 @@ export class TriviaSnakeStack extends cdk.Stack {
       removalPolicy: cdk.RemovalPolicy.DESTROY,
     });
 
-        // Add a resource server
+    // Add a resource server
     const resourceServer = userPool.addResourceServer('TriviaSnakeResourceServer', {
       identifier: 'trivia-snake',
       scopes: [
@@ -79,7 +81,6 @@ export class TriviaSnakeStack extends cdk.Stack {
         },
       ],
     });
-
 
     // User Pool Client
     const userPoolClient = new cognito.UserPoolClient(this, 'TriviaSnakeUserPoolClient', {
@@ -95,29 +96,170 @@ export class TriviaSnakeStack extends cdk.Stack {
           implicitCodeGrant: true,
         },
         scopes: [
-          cognito.OAuthScope.EMAIL,  
+          cognito.OAuthScope.EMAIL,
           cognito.OAuthScope.OPENID,
           cognito.OAuthScope.PROFILE,
         ],
-        callbackUrls: allowedURLs, // Your CloudFront URL
-        logoutUrls: allowedURLs, // Your CloudFront URL
+        callbackUrls: allowedURLs,
+        logoutUrls: allowedURLs,
+      },
+    });
+
+    // AppSync API
+    const appSyncApi = new appsync.GraphqlApi(this, 'TriviaSnakeAppSyncAPI', {
+      name: 'trivia-snake-app-sync-api',
+      definition: appsync.Definition.fromFile(path.join(__dirname, '..', 'src', 'graphql', 'schema.graphql')),
+      authorizationConfig: {
+        defaultAuthorization: {
+          authorizationType: appsync.AuthorizationType.USER_POOL,
+          userPoolConfig: {
+            userPool,
+          },
+        },
+        additionalAuthorizationModes: [
+          {
+            authorizationType: appsync.AuthorizationType.API_KEY,
+            apiKeyConfig: {
+              expires: cdk.Expiration.after(cdk.Duration.days(365))
+            }
+          },
+          {
+            authorizationType: appsync.AuthorizationType.IAM,
+          },
+        ],
+      },
+      xrayEnabled: true,
+      logConfig: {
+        fieldLogLevel: appsync.FieldLogLevel.ALL,
+        retention: logs.RetentionDays.ONE_WEEK
       },
     });
 
     // DynamoDB Tables
-    const leaderboardTable = new dynamodb.Table(this, 'LeaderboardTable', {
-      partitionKey: { name: 'userId', type: dynamodb.AttributeType.STRING },
-      sortKey: { name: 'adventureId', type: dynamodb.AttributeType.STRING },
-      billingMode: dynamodb.BillingMode.PAY_PER_REQUEST,
-    });
-
-    // DynamoDB table for storing adventure data
-    const adventureTable = new dynamodb.Table(this, 'AdventureTable', {
+    const gameSessionTable = new dynamodb.Table(this, 'TriviaSnakeGameSession', {
+      tableName: 'TriviaSnakeGameSession',
       partitionKey: { name: 'id', type: dynamodb.AttributeType.STRING },
       billingMode: dynamodb.BillingMode.PAY_PER_REQUEST,
+      timeToLiveAttribute: 'ttl',
+      removalPolicy: cdk.RemovalPolicy.DESTROY,
     });
 
-    // Lambda Function
+    const adventureTable = new dynamodb.Table(this, 'TriviaSnakeAdventure', {
+      tableName: 'TriviaSnakeAdventure',
+      partitionKey: { name: 'id', type: dynamodb.AttributeType.STRING },
+      billingMode: dynamodb.BillingMode.PAY_PER_REQUEST,
+      removalPolicy: cdk.RemovalPolicy.DESTROY,
+    });
+
+    const leaderboardTable = new dynamodb.Table(this, 'TriviaSnakeLeaderboardV2', {
+      tableName: 'TriviaSnakeLeaderboardV2',
+      partitionKey: { name: 'userId_adventureId', type: dynamodb.AttributeType.STRING },
+      sortKey: { name: 'score', type: dynamodb.AttributeType.NUMBER },
+      billingMode: dynamodb.BillingMode.PAY_PER_REQUEST,
+      removalPolicy: cdk.RemovalPolicy.DESTROY,
+    });
+
+    // Add GSIs
+    gameSessionTable.addGlobalSecondaryIndex({
+      indexName: 'byStatus',
+      partitionKey: { name: 'sessionStatus', type: dynamodb.AttributeType.STRING },
+      sortKey: { name: 'createdAt', type: dynamodb.AttributeType.STRING },
+    });
+
+    leaderboardTable.addGlobalSecondaryIndex({
+      indexName: 'adventure-score-index',
+      partitionKey: { name: 'adventureId', type: dynamodb.AttributeType.STRING },
+      sortKey: { name: 'score', type: dynamodb.AttributeType.NUMBER },
+      projectionType: dynamodb.ProjectionType.ALL,
+    });
+
+    // Create AppSync DataSources
+    const gameSessionDS = appSyncApi.addDynamoDbDataSource('GameSessionDataSource', gameSessionTable);
+
+    // Create Lambda function for custom resolvers
+    const resolverFunction = new lambda.Function(this, 'ResolverFunction', {
+      runtime: lambda.Runtime.NODEJS_LATEST,
+      handler: 'index.handler',
+      code: lambda.Code.fromAsset(path.join(__dirname, '..', 'lambda', 'game-logic')),
+      environment: {
+        GAME_SESSIONS_TABLE: gameSessionTable.tableName,
+        ADVENTURES_TABLE: adventureTable.tableName,
+      },
+      bundling: {
+        minify: true,
+        sourceMap: true,
+        nodeModules: [
+          '@aws-sdk/client-dynamodb',
+          '@aws-sdk/lib-dynamodb'
+        ]
+      },
+      timeout: cdk.Duration.seconds(30)
+    });
+
+    // Grant permissions
+    gameSessionTable.grantReadWriteData(resolverFunction);
+    adventureTable.grantReadWriteData(resolverFunction);
+    leaderboardTable.grantReadWriteData(resolverFunction);
+
+    // Create Lambda DataSource
+    const lambdaDS = appSyncApi.addLambdaDataSource('LambdaDataSource', resolverFunction);
+
+    // Create Resolvers
+    // Query Resolvers
+
+    gameSessionDS.createResolver('GetGameSessionResolver', {
+      typeName: 'Query',
+      fieldName: 'getGameSession',
+      requestMappingTemplate: appsync.MappingTemplate.dynamoDbGetItem('id', 'id'),
+      responseMappingTemplate: appsync.MappingTemplate.dynamoDbResultList(),
+    });
+
+    gameSessionDS.createResolver('ListGameSessionsResolver', {
+      typeName: 'Query',
+      fieldName: 'listGameSessions',
+      requestMappingTemplate: appsync.MappingTemplate.fromString(`
+        {
+          "version": "2017-02-28",
+          "operation": "Scan",
+          "limit": $util.defaultIfNull($ctx.args.limit, 20),
+          "nextToken": $util.toJson($util.defaultIfNull($ctx.args.nextToken, null))
+        }
+      `),
+      responseMappingTemplate: appsync.MappingTemplate.fromString(`
+        #if($ctx.error)
+          $util.error($ctx.error.message, $ctx.error.type)
+        #end
+        
+        #if($ctx.result.items.size() == 0)
+          #return({
+            "items": [],
+            "nextToken": $util.toJson($util.defaultIfNull($ctx.result.nextToken, null))
+          })
+        #end
+    
+        $util.toJson({
+          "items": $ctx.result.items,
+          "nextToken": $util.defaultIfNull($ctx.result.nextToken, null)
+        })
+      `)
+    });
+
+    // Mutation Resolvers
+    lambdaDS.createResolver('CreateGameSessionResolver',{
+      typeName: 'Mutation',
+      fieldName: 'createGameSession',
+      requestMappingTemplate: appsync.MappingTemplate.lambdaRequest(),
+      responseMappingTemplate: appsync.MappingTemplate.lambdaResult(),
+    });
+
+    lambdaDS.createResolver('JoinGameSessionResolver', {
+      typeName: 'Mutation',
+      fieldName: 'joinGameSession',
+      requestMappingTemplate: appsync.MappingTemplate.lambdaRequest(),
+      responseMappingTemplate: appsync.MappingTemplate.lambdaResult(),
+    });
+
+
     const leaderboardFunction = new lambda.Function(this, 'LeaderboardFunction', {
       runtime: lambda.Runtime.PYTHON_3_8,
       handler: 'lambda_function.lambda_handler',
@@ -129,21 +271,12 @@ export class TriviaSnakeStack extends cdk.Stack {
         USER_POOL_ID: userPool.userPoolId,
         USER_POOL_CLIENT_ID: userPoolClient.userPoolClientId,
       },
+      timeout: cdk.Duration.minutes(1)
     });
 
     leaderboardTable.grantReadWriteData(leaderboardFunction);
     adventureTable.grantReadWriteData(leaderboardFunction);
     adventureImagesBucket.grantReadWrite(leaderboardFunction);
-
-    // Grant permissions to call Amazon Bedrock
-    leaderboardFunction.addToRolePolicy(new iam.PolicyStatement({
-      effect: iam.Effect.ALLOW,
-      actions: [
-        'bedrock:InvokeModel',
-        'bedrock:ListFoundationModels',
-      ],
-      resources: ['*'], // You might want to restrict this to specific model ARNs if known
-    }));
 
     // Grant S3 permissions to the Lambda function
     leaderboardFunction.addToRolePolicy(new iam.PolicyStatement({
@@ -155,9 +288,19 @@ export class TriviaSnakeStack extends cdk.Stack {
       ],
       resources: [adventureImagesBucket.arnForObjects('*')],
     }));
-    
-    // API Gateway
-    const api = new apigateway.RestApi(this, 'TriviaSnakeApi', {
+    // Grant permissions to call Amazon Bedrock
+    leaderboardFunction.addToRolePolicy(new iam.PolicyStatement({
+      effect: iam.Effect.ALLOW,
+      actions: [
+        'bedrock:InvokeModel',
+        'bedrock:ListFoundationModels',
+      ],
+      resources: ['*'], // You might want to restrict this to specific model ARNs if known
+    }));
+
+    // Create REST API
+    const restApi = new apigateway.RestApi(this, 'TriviaSnakeRestApi', {
+      restApiName: 'Trivia Snake REST API',
       defaultCorsPreflightOptions: {
         allowOrigins: allowedURLs,
         allowMethods: apigateway.Cors.ALL_METHODS,
@@ -173,10 +316,10 @@ export class TriviaSnakeStack extends cdk.Stack {
     });
 
     // Create resources and add methods
-    const leaderboardResource = api.root.addResource('leaderboard');
-    const adventuresResource = api.root.addResource('adventures');
+    const leaderboardResource = restApi.root.addResource('leaderboard');
+    const adventuresResource = restApi.root.addResource('adventures');
     const adventureIdResource = adventuresResource.addResource('{id}');
-    const generateQuizResource = api.root.addResource('generate-quiz');
+    const generateQuizResource = restApi.root.addResource('generate-quiz');
     
     // Add methods for leaderboard resource
     ['GET', 'POST'].forEach(method => {
@@ -266,23 +409,23 @@ export class TriviaSnakeStack extends cdk.Stack {
 
     // S3 bucket for frontend
     const websiteBucket = new s3.Bucket(this, 'TriviaSnakeWebsiteBucket', {
-    publicReadAccess: false,
-    blockPublicAccess: s3.BlockPublicAccess.BLOCK_ALL,
-    removalPolicy: cdk.RemovalPolicy.DESTROY,
-    autoDeleteObjects: true,
-    });
-
-    /// CloudFront Origin Access Control
-    const oac = new cloudfront.CfnOriginAccessControl(this, 'TriviaSnakeOAC', {
-      originAccessControlConfig: {
-        name: 'TriviaSnakeOAC',
-        originAccessControlOriginType: 's3',
-        signingBehavior: 'always',
-        signingProtocol: 'sigv4',
-      },
-    });
+      publicReadAccess: false,
+      blockPublicAccess: s3.BlockPublicAccess.BLOCK_ALL,
+      removalPolicy: cdk.RemovalPolicy.DESTROY,
+      autoDeleteObjects: true,
+      });
   
-      // CloudFront distribution
+      /// CloudFront Origin Access Control
+      const oac = new cloudfront.CfnOriginAccessControl(this, 'TriviaSnakeOAC', {
+        originAccessControlConfig: {
+          name: 'TriviaSnakeOAC',
+          originAccessControlOriginType: 's3',
+          signingBehavior: 'always',
+          signingProtocol: 'sigv4',
+        },
+      });
+        
+    // CloudFront distribution
     const distribution = new cloudfront.Distribution(this, 'TriviaSnakeDistribution', {
       defaultBehavior: {
         origin: new origins.S3BucketOrigin(websiteBucket),
@@ -322,7 +465,7 @@ export class TriviaSnakeStack extends cdk.Stack {
     });
 
     websiteBucket.addToResourcePolicy(bucketPolicyStatement);
-    
+  
 
     // Deploy frontend to S3
     new s3deploy.BucketDeployment(this, 'TriviaSnakeBucketDeployment', {
@@ -332,90 +475,29 @@ export class TriviaSnakeStack extends cdk.Stack {
       distributionPaths: ['/*'],
     });
 
-    // Output the API URL and CloudFront URL
-    new cdk.CfnOutput(this, 'ApiUrl', { value: api.url });
-    new cdk.CfnOutput(this, 'CloudFrontUrl', { value: `https://${distribution.domainName}` });
-    new cdk.CfnOutput(this, 'UserPoolId', { value: userPool.userPoolId });
-    new cdk.CfnOutput(this, 'UserPoolClientId', { value: userPoolClient.userPoolClientId });
-
-    // Lambda Invocations Alarm (across all functions)
-    new cloudwatch.Alarm(this, 'LambdaInvocationsAlarm', {
-      metric: new cloudwatch.Metric({
-        namespace: 'AWS/Lambda',
-        metricName: 'Invocations',
-        statistic: 'Sum',
-        period: cdk.Duration.hours(1),
-      }),
-      threshold: 1000000 / 720, // Approximately 1 million per month, divided by 720 hours in a 30-day month
-      evaluationPeriods: 24,
-      alarmDescription: 'Alarm if Lambda invocations across all functions exceed 1 million per month',
+    // Add outputs
+    new cdk.CfnOutput(this, 'GraphQLAPIURL', {
+      value: appSyncApi.graphqlUrl,
     });
 
-    // DynamoDB Consumed Read Capacity Units Alarm (across all tables)
-    new cloudwatch.Alarm(this, 'DynamoDBReadCapacityUnitsAlarm', {
-      metric: new cloudwatch.Metric({
-        namespace: 'AWS/DynamoDB',
-        metricName: 'ConsumedReadCapacityUnits',
-        statistic: 'Sum',
-        period: cdk.Duration.hours(1),
-      }),
-      threshold: 18600 / 720, // 18600 per month, divided by 720 hours in a 30-day month
-      evaluationPeriods: 24,
-      alarmDescription: 'Alarm if DynamoDB read capacity units across all tables exceed 18600 per month',
+    new cdk.CfnOutput(this, 'GraphQLAPIKey', {
+      value: appSyncApi.apiKey || '',
     });
 
-    // DynamoDB Consumed Write Capacity Units Alarm (across all tables)
-    new cloudwatch.Alarm(this, 'DynamoDBWriteCapacityUnitsAlarm', {
-      metric: new cloudwatch.Metric({
-        namespace: 'AWS/DynamoDB',
-        metricName: 'ConsumedWriteCapacityUnits',
-        statistic: 'Sum',
-        period: cdk.Duration.hours(1),
-      }),
-      threshold: 18600 / 720, // 18600 per month, divided by 720 hours in a 30-day month
-      evaluationPeriods: 24,
-      alarmDescription: 'Alarm if DynamoDB write capacity units across all tables exceed 18600 per month',
+    new cdk.CfnOutput(this, 'RestApiEndpoint', {
+      value: restApi.url,
     });
 
-    // S3 Total Bucket Size Alarm (across all buckets)
-    new cloudwatch.Alarm(this, 'S3TotalStorageAlarm', {
-      metric: new cloudwatch.Metric({
-        namespace: 'AWS/S3',
-        metricName: 'BucketSizeBytes',
-        statistic: 'Sum',
-        period: cdk.Duration.hours(1),
-      }),
-      threshold: 5 * 1024 * 1024 * 1024, // 5 GB in bytes
-      evaluationPeriods: 24,
-      comparisonOperator: cloudwatch.ComparisonOperator.GREATER_THAN_THRESHOLD,
-      alarmDescription: 'Alarm if total S3 storage across all buckets exceeds 5 GB',
+    new cdk.CfnOutput(this, 'UserPoolId', {
+      value: userPool.userPoolId,
     });
 
-    // API Gateway Requests Alarm (across all APIs)
-    new cloudwatch.Alarm(this, 'ApiGatewayRequestsAlarm', {
-      metric: new cloudwatch.Metric({
-        namespace: 'AWS/ApiGateway',
-        metricName: 'Count',
-        statistic: 'Sum',
-        period: cdk.Duration.hours(1),
-      }),
-      threshold: 1000000 / 720, // 1 million per month, divided by 720 hours in a 30-day month
-      evaluationPeriods: 24,
-      alarmDescription: 'Alarm if API Gateway requests across all APIs exceed 1 million per month',
+    new cdk.CfnOutput(this, 'UserPoolClientId', {
+      value: userPoolClient.userPoolClientId,
     });
 
-    // CloudFront Data Transfer Alarm (across all distributions)
-    new cloudwatch.Alarm(this, 'CloudFrontDataTransferAlarm', {
-      metric: new cloudwatch.Metric({
-        namespace: 'AWS/CloudFront',
-        metricName: 'BytesDownloaded',
-        statistic: 'Sum',
-        period: cdk.Duration.hours(1),
-      }),
-      threshold: (1024 * 1024 * 1024 * 1024) / 720, // 1 TB per month, divided by 720 hours in a 30-day month
-      evaluationPeriods: 24,
-      alarmDescription: 'Alarm if CloudFront data transfer across all distributions exceeds 1 TB per month',
+    new cdk.CfnOutput(this, 'CloudFrontURL', {
+      value: distribution.distributionDomainName,
     });
-
   }
 }

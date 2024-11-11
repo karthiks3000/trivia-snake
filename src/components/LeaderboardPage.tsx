@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Leaderboard, LeaderboardEntry } from './Leaderboard';
 import api from '../api';
-import { Adventure } from './AdventureSelection';
+import { Adventure } from '../interface';
 
 const LeaderboardPage: React.FC = () => {
   const [leaderboardEntries, setLeaderboardEntries] = useState<LeaderboardEntry[]>([]);

@@ -4,13 +4,8 @@ import { Button } from "./ui/Button";
 import { Label } from "./ui/Label";
 import { RadioGroup, RadioGroupItem } from "./ui/RadioGroup";
 import { Trash2, PlusCircle } from 'lucide-react';
+import { Question } from '../interface';
 
-export interface Question {
-  id: string;
-  question: string;
-  options: string[];
-  correctAnswer: string;
-}
 
 interface QuestionFormProps {
   question: Question;

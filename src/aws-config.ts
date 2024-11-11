@@ -14,5 +14,12 @@ Amplify.configure({
         }
       }
     },
+  },
+  API: {
+    GraphQL: {
+      endpoint: process.env.REACT_APP_AWS_APPSYNC_GRAPHQL_ENDPOINT!,
+      region: process.env.REACT_APP_AWS_REGION!,
+      defaultAuthMode: 'userPool',
+    }
   }
 });

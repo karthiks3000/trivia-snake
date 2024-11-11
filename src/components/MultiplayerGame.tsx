@@ -1,31 +1,24 @@
 import React, { useEffect, useState, useCallback } from 'react';
-import { generateClient } from 'aws-amplify/api';
-import { GraphQLQuery, GraphQLSubscription } from '@aws-amplify/api';
+import { useLocation } from 'react-router-dom';
+import { GraphQLSubscription } from '@aws-amplify/api';
 import { getGameSession, GetGameSessionQuery } from '../graphql/operations/queries';
 import { answerQuestion } from '../graphql/operations/mutations';
 import { GraphqlSubscriptionMessage } from '@aws-amplify/api-graphql';
-import { GameSessionData, onUpdateGameSession } from '../graphql/operations/subscriptions';
+import { onUpdateGameSession } from '../graphql/operations/subscriptions';
+import { GameSession, Question } from '../interface';
 
-interface Question {
-  id: string;
-  question: string;
-  options: string[];
-  correctAnswer: string;
-}
 
-interface GameSession extends GameSessionData {
-  createdAt: string;
-}
 
 interface MultiplayerGameProps {
-  sessionId: string;
   userProfile: {
     userId: string;
     isHost: boolean;
   };
 }
 
-const MultiplayerGame: React.FC<MultiplayerGameProps> = ({ sessionId, userProfile }) => {
+const MultiplayerGame: React.FC<MultiplayerGameProps> = ({ userProfile }) => {
+  const location = useLocation();
+  const sessionId = location.state?.sessionId as string;
   const [gameSession, setGameSession] = useState<GameSession | null>(null);
   const [currentQuestion, setCurrentQuestion] = useState<Question | null>(null);
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
@@ -42,7 +35,7 @@ const MultiplayerGame: React.FC<MultiplayerGameProps> = ({ sessionId, userProfil
     const sub = onUpdateGameSession(sessionId);
     
     const subscription = sub.subscribe({
-      next: (message: GraphqlSubscriptionMessage<GraphQLSubscription<{ onUpdateGameSession: GameSessionData }>>) => {
+      next: (message: GraphqlSubscriptionMessage<GraphQLSubscription<{ onUpdateGameSession: GameSession }>>) => {
         const updatedSession = message.data.onUpdateGameSession;
         setGameSession(prevSession => ({
           ...updatedSession,
@@ -53,7 +46,7 @@ const MultiplayerGame: React.FC<MultiplayerGameProps> = ({ sessionId, userProfil
         setPlayer2Score(userProfile.isHost ? updatedSession.guestScore : updatedSession.hostScore);
         setCurrentQuestion(updatedSession.questions[updatedSession.currentQuestionIndex]);
 
-        if (updatedSession.status === 'COMPLETED') {
+        if (updatedSession.sessionStatus === 'COMPLETED') {
           setGameOver(true);
           setGameWon(userProfile.isHost ? 
             updatedSession.hostScore > updatedSession.guestScore : 

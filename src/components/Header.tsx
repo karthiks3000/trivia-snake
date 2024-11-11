@@ -1,12 +1,11 @@
 import React from 'react';
 import { Button } from './ui/Button';
-import { UserProfile } from '../App';
 import { LogOut, MoveHorizontal, Trophy } from 'lucide-react';
-import { Adventure } from './AdventureSelection';
 import { Link } from 'react-router-dom';
+import { Adventure } from '../interface';
+import { useGameContext } from './GameContext';
 
 interface HeaderProps {
-  userProfile?: UserProfile;
   showAdventureSelection: boolean;
   selectedAdventure?: Adventure;
   onChangeAdventure: () => void;
@@ -15,13 +14,14 @@ interface HeaderProps {
 }
 
 const Header: React.FC<HeaderProps> = ({
-  userProfile,
   showAdventureSelection,
   selectedAdventure,
   onChangeAdventure,
   onShowLeaderboard,
   onSignOut
 }) => {
+  const { userProfile } = useGameContext();
+
   const formatAdventureName = (name: string) => {
     return name.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
   };
@@ -66,7 +66,7 @@ const Header: React.FC<HeaderProps> = ({
             </Button>
             
             <span className="text-white/90">
-              Welcome, <span className="font-medium">{userProfile?.username}</span>
+              Welcome, <span className="font-medium">{userProfile.username}</span>
             </span>
             
             <Button 

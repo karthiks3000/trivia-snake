@@ -1,15 +1,16 @@
-import { useEffect, useState } from 'react';
-import { fetchUserAttributes } from 'aws-amplify/auth';
+import React, { useState } from 'react';
 import { Authenticator, ThemeProvider, Theme, View, useAuthenticator } from '@aws-amplify/ui-react';
-import { BrowserRouter as Router, Route, Routes, Navigate } from 'react-router-dom';
+import { BrowserRouter as Router, Route, Routes, Navigate, useNavigate, useLocation } from 'react-router-dom';
 
 import '@aws-amplify/ui-react/styles.css';
-import Game from './components/Game';
-import AdventureSelection, { Adventure } from './components/AdventureSelection';
 import './aws-config';
-import Header from './components/Header';
+import AdventureSelectionPage from './components/AdventureSelectionPage';
+import GameModePage from './components/GameModePage';
 import LandingPage from './components/LandingPage';
-import LeaderboardPage from './components/LeaderboardPage';
+import SinglePlayerGame from './components/SinglePlayerGame';
+import { GameProvider } from './components/GameContext';
+import { UserProfile, Adventure } from './interface';
+import Header from './components/Header';
 
 const theme: Theme = {
   name: 'custom-theme',
@@ -48,89 +49,24 @@ const theme: Theme = {
   },
 };
 
-export interface UserProfile {
-  username: string;
-  userId: string;
-}
-
-
-
-function AuthenticatedApp() {
-  const { signOut } = useAuthenticator((context) => [context.user]);
-  const [selectedAdventure, setSelectedAdventure] = useState<Adventure>();
-  const [userProfile, setUserProfile] = useState<UserProfile>();
-  const [showAdventureSelection, setShowAdventureSelection] = useState(true);
-  const [showLeaderboard, setShowLeaderboard] = useState(false);
-
-  useEffect(() => {
-    async function fetchUsername() {
-      try {
-        const userAttributes = await fetchUserAttributes();
-        setUserProfile({
-          userId: userAttributes.sub!,
-          username: userAttributes.preferred_username!
-        });
-      } catch (error) {
-        console.error('Error fetching user:', error);
-      }
-    }
-    fetchUsername();
-  }, []);
+const AuthenticatedRoute: React.FC<{ element: React.ReactElement }> = ({ element }) => {
+  const { user } = useAuthenticator((context) => [context.user]);
+  
+  if (!user) {
+    return <Navigate to="/signin" replace />;
+  }
+  
+  const userProfile: UserProfile = {
+    userId: user.userId,
+    username: user.username
+  };
 
   return (
-    <div className="flex flex-col min-h-screen bg-gray-100">
-      <Header
-        userProfile={userProfile}
-        showAdventureSelection={showAdventureSelection}
-        selectedAdventure={selectedAdventure}
-        onChangeAdventure={() => {
-          setShowAdventureSelection(true);
-          setShowLeaderboard(false);
-        }}
-        onShowLeaderboard={() => {
-          setShowLeaderboard(true);
-          setShowAdventureSelection(false);
-        }}
-        onSignOut={signOut}
-      />
-      <main className="flex-grow container mx-auto px-4 py-8">
-        {showLeaderboard ? (
-          <LeaderboardPage />
-        ) : showAdventureSelection ? (
-          <div className="bg-white rounded-lg shadow-lg p-6">
-            <AdventureSelection
-              userProfile={userProfile}
-              onAdventureSelect={(adventure) => {
-                setSelectedAdventure(adventure);
-                setShowAdventureSelection(false);
-              }}
-            />
-          </div>
-        ) : (
-          selectedAdventure && <Game adventure={selectedAdventure} userProfile={userProfile!} />
-        )}
-      </main>
-    </div>
+    <GameProvider userProfile={userProfile}>
+      {element}
+    </GameProvider>
   );
-}
-
-function App() {
-  return (
-    <ThemeProvider theme={theme}>
-      <Authenticator.Provider>
-        <Router>
-          <div className="min-h-screen bg-gray-100">
-            <Routes>
-              <Route path="/" element={<LandingPage />} />
-              <Route path="/signin" element={<AuthFlow />} />
-              <Route path="/game" element={<ProtectedRoute><AuthenticatedApp /></ProtectedRoute>} />
-            </Routes>
-          </div>
-        </Router>
-      </Authenticator.Provider>
-    </ThemeProvider>
-  );
-}
+};
 
 function AuthFlow() {
   return (
@@ -153,20 +89,102 @@ function AuthFlow() {
       }}
     >
       {({ user }) => (
-        <>{user ? <Navigate to="/game" replace /> : null}</>
+        <>{user ? <Navigate to="/adventure-selection" replace /> : null}</>
       )}
     </Authenticator>
   );
 }
 
-function ProtectedRoute({ children }: { children: React.ReactNode }) {
+function App() {
+  return (
+    <ThemeProvider theme={theme}>
+      <Authenticator.Provider>
+        <Router>
+          <AppContent />
+        </Router>
+      </Authenticator.Provider>
+    </ThemeProvider>
+  );
+}
+
+function AppContent() {
+  const [selectedAdventure, setSelectedAdventure] = useState<Adventure | null>(null);
+  const navigate = useNavigate();
+  const location = useLocation();
   const { user } = useAuthenticator((context) => [context.user]);
-  
-  if (!user) {
-    return <Navigate to="/signin" replace />;
-  }
-  
-  return <>{children}</>;
+
+  const handleChangeAdventure = () => {
+    setSelectedAdventure(null);
+    navigate('/adventure-selection');
+  };
+
+  const handleShowLeaderboard = () => {
+    // TODO: Implement leaderboard navigation
+    console.log("Show leaderboard");
+  };
+
+  const handleSignOut = () => {
+    // TODO: Implement sign out functionality
+    console.log("Sign out");
+  };
+
+  const showHeader = user && location.pathname !== '/' && location.pathname !== '/signin';
+
+  return (
+    <div className="min-h-screen bg-gray-100">
+      {showHeader && (
+        <Header 
+          showAdventureSelection={true}
+          selectedAdventure={selectedAdventure}
+          onChangeAdventure={handleChangeAdventure}
+          onShowLeaderboard={handleShowLeaderboard}
+          onSignOut={handleSignOut}
+        />
+      )}
+      <Routes>
+        <Route path="/" element={<LandingPage />} />
+        <Route path="/signin" element={<AuthFlow />} />
+        <Route 
+          path="/adventure-selection" 
+          element={
+            <AuthenticatedRoute 
+              element={
+                <AdventureSelectionPage 
+                  onAdventureSelect={(adventure: Adventure) => setSelectedAdventure(adventure)}
+                />
+              } 
+            />
+          } 
+        />
+        <Route 
+          path="/game-mode" 
+          element={
+            <AuthenticatedRoute 
+              element={
+                <GameModePage 
+                  selectedAdventure={selectedAdventure}
+                />
+              }
+            />
+          } 
+        />
+        <Route 
+          path="/game" 
+          element={
+            <AuthenticatedRoute 
+              element={
+                <SinglePlayerGame 
+                  selectedAdventure={selectedAdventure}
+                />
+              }
+            />
+          } 
+        />
+        {/* <Route path="/multiplayer-lobby" element={<AuthenticatedRoute element={<MultiplayerLobby />} />} />
+        <Route path="/game/:sessionId" element={<AuthenticatedRoute element={<MultiplayerGame />} />} /> */}
+      </Routes>
+    </div>
+  );
 }
 
 export default App;

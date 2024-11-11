@@ -26,5 +26,5 @@
   },
   "include": [
     "src"
-  ]
+, "lambda/populate-questions", "lambda/game-logic"  ]
 }

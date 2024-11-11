@@ -1,25 +1,14 @@
 import React, { useState, useEffect } from 'react';
-import { UserProfile } from '../App';
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "./ui/Card";
 import { Button } from "./ui/Button";
 import { Plus, Loader2, Search } from 'lucide-react';
 import api from '../api';
 import { Alert, AlertDescription, AlertTitle } from "./ui/Alert";
 import AdventureCreation, { GENRES } from './AdventureCreation';
-import { Question } from './QuestionForm';
 import { Input } from "./ui/Input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "./ui/Select";
+import { Adventure, UserProfile } from '../interface';
 
-export interface Adventure {
-  id?: string;
-  name: string;
-  description: string;
-  image_url: string;
-  questions: Question[];
-  createdBy?: string;
-  verificationStatus?: string;
-  genre: string;
-}
 
 interface AdventureSelectionProps {
   userProfile: UserProfile | undefined;

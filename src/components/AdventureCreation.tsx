@@ -4,13 +4,13 @@ import { Input } from "./ui/Input";
 import { Label } from "./ui/Label";
 import { Button } from "./ui/Button";
 import { Loader2, PlusCircle } from 'lucide-react';
-import { UserProfile } from '../App';
-import QuestionForm, { Question } from './QuestionForm';
+import QuestionForm from './QuestionForm';
 import ImageUpload from './ImageUpload';
 import api from '../api';
 import { Alert, AlertTitle, AlertDescription } from "./ui/Alert";
 import { AnimatePresence, motion } from "framer-motion";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/Select';
+import { Question, UserProfile } from '../interface';
 
 interface AdventureCreationProps {
   isOpen: boolean;

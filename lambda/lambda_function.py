@@ -376,8 +376,14 @@ def save_score(body):
     
     try:
         # Get the current record for the user and adventure
-        response = leaderboard_table.get_item(Key={'userId': user_id, 'adventureId': adventure_id})
+        response = leaderboard_table.get_item(
+            Key={
+                'userId_adventureId': f"{user_id}#{adventure_id}",  # Composite key
+                'score': Decimal('-999')  # Default score for sorting
+            }
+        )
         new_item = {
+            'userId_adventureId': f"{user_id}#{adventure_id}",  # Composite key
             'userId': user_id,
             'username': username,
             'score': Decimal(str(score)),  # Convert to Decimal for DynamoDB
@@ -405,27 +411,4 @@ def save_score(body):
             'statusCode': 500,
             'headers': get_cors_headers(),
             'body': json.dumps({'error': str(e)})
-        }
-    response = users_table.get_item(Key={'username': username})
-    if 'Item' not in response:
-        return {
-            'statusCode': 401,
-            'headers': get_cors_headers(),
-            'body': json.dumps({'error': 'Invalid username or password'})
-        }
-    
-    user = response['Item']
-    
-    # Check password
-    if verify_password(user['password'], password):
-        return {
-            'statusCode': 200,
-            'headers': get_cors_headers(),
-            'body': json.dumps({'message': 'Login successful'})
-        }
-    else:
-        return {
-            'statusCode': 401,
-            'headers': get_cors_headers(),
-            'body': json.dumps({'error': 'Invalid username or password'})
         }

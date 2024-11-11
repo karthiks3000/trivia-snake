@@ -1,35 +1,13 @@
 // src/graphql/operations/subscriptions.ts
 import { generateClient } from 'aws-amplify/api';
 import { GraphQLSubscription } from '@aws-amplify/api';
+import { GameSession } from '@/src/interface';
 
 const client = generateClient();
 
-export interface GameSessionData {
-  id: string;
-  hostId: string;
-  guestId?: string;
-  adventureId: string;
-  currentQuestionIndex: number;
-  hostScore: number;
-  guestScore: number;
-  status: string;
-  questions: {
-    id: string;
-    question: string;
-    options: string[];
-    correctAnswer: string;
-  }[];
-  questionScores: {
-    questionIndex: number;
-    hostScore: number;
-    guestScore: number;
-  }[];
-  lastUpdateTimestamp: number;
-  updatedAt: string;
-}
 
 export interface OnUpdateGameSessionSubscription {
-  onUpdateGameSession: GameSessionData;
+  onUpdateGameSession: GameSession;
 }
 
 export const onUpdateGameSession = (sessionId: string) => {
@@ -43,7 +21,7 @@ export const onUpdateGameSession = (sessionId: string) => {
         currentQuestionIndex
         hostScore
         guestScore
-        status
+        sessionStatus
         questions {
           id
           question
@@ -68,42 +46,13 @@ export const onUpdateGameSession = (sessionId: string) => {
 };
 
 
-// TypeScript interfaces
-interface Question {
-  id: string;
-  question: string;
-  options: string[];
-  correctAnswer: string;
-}
-
-interface QuestionScore {
-  questionIndex: number;
-  hostScore: number;
-  guestScore: number;
-}
-
-export interface GameSessionSubscription {
-  id: string;
-  hostId: string;
-  guestId?: string;
-  adventureId: string;
-  currentQuestionIndex: number;
-  hostScore: number;
-  guestScore: number;
-  status: string;
-  questions: Question[];
-  questionScores: QuestionScore[];
-  lastUpdateTimestamp: number;
-  updatedAt: string;
-}
-
 // For game start notifications
 export const onGameSessionStarted = (sessionId: string) => {
   const subscription = /* GraphQL */ `
     subscription OnGameSessionStarted($id: ID!) {
       onGameSessionStarted(id: $id) {
         id
-        status
+        sessionStatus
         currentQuestionIndex
         lastUpdateTimestamp
         updatedAt
@@ -125,7 +74,7 @@ export const onPlayerJoined = (sessionId: string) => {
         id
         hostId
         guestId
-        status
+        sessionStatus
         updatedAt
       }
     }

@@ -7,13 +7,15 @@ import GameScreen from './GameScreen';
 import { api } from '../api';
 import { LeaderboardEntry } from './Leaderboard';
 import { Card, CardContent } from './ui/Card';
-import { Adventure } from './AdventureSelection';
+import { Adventure } from '../interface';
+import { useLocation } from 'react-router-dom';
+
 
 interface SinglePlayerGameProps {
-  adventure: Adventure;
+  selectedAdventure: Adventure | null;
 }
 
-const SinglePlayerGame: React.FC<SinglePlayerGameProps> = ({ adventure: selectedAdventure }) => {
+const SinglePlayerGame: React.FC<SinglePlayerGameProps> = ({ selectedAdventure }) => {
   const { 
     setScore,
     setGameOver, 
@@ -23,6 +25,7 @@ const SinglePlayerGame: React.FC<SinglePlayerGameProps> = ({ adventure: selected
     elapsedTime,
     setElapsedTime,
     gameOver,
+    userProfile
   } = useGameContext();
 
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
@@ -31,6 +34,8 @@ const SinglePlayerGame: React.FC<SinglePlayerGameProps> = ({ adventure: selected
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [questionTimer, setQuestionTimer] = useState(10);
+
+  console.log(`Game started for user: ${userProfile.username} (ID: ${userProfile.userId}`);
 
   const fetchLeaderboard = useCallback(async () => {
     try {
@@ -43,6 +48,7 @@ const SinglePlayerGame: React.FC<SinglePlayerGameProps> = ({ adventure: selected
   }, []);
 
   const fetchQuestions = useCallback(async () => {
+    if (!selectedAdventure) return;
     setIsLoading(true);
     try {
       const response = await api.getAdventure(selectedAdventure.id!);
@@ -55,7 +61,7 @@ const SinglePlayerGame: React.FC<SinglePlayerGameProps> = ({ adventure: selected
     } finally {
       setIsLoading(false);
     }
-  }, [selectedAdventure.id]);
+  }, [selectedAdventure]);
 
   useEffect(() => {
     fetchQuestions();
@@ -93,7 +99,7 @@ const SinglePlayerGame: React.FC<SinglePlayerGameProps> = ({ adventure: selected
       if (adventure && currentQuestionIndex === adventure.questions.length - 1) {
         setGameWon(true);
         setGameOver(true);
-        updateLeaderboardFromContext(newScore, selectedAdventure).then(() => fetchLeaderboard());
+        updateLeaderboardFromContext(newScore, selectedAdventure!).then(() => fetchLeaderboard());
       } else {
         setCurrentQuestionIndex(prevIndex => prevIndex + 1);
       }
@@ -104,7 +110,7 @@ const SinglePlayerGame: React.FC<SinglePlayerGameProps> = ({ adventure: selected
 
   const handleWrongAnswer = useCallback(() => {
     setGameOver(true);
-    updateLeaderboardFromContext(score, selectedAdventure).then(() => fetchLeaderboard());
+    updateLeaderboardFromContext(score, selectedAdventure!).then(() => fetchLeaderboard());
   }, [score, selectedAdventure, setGameOver, updateLeaderboardFromContext, fetchLeaderboard]);
 
   useEffect(() => {

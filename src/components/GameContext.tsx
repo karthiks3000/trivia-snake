@@ -1,8 +1,7 @@
 // GameContext.tsx
 import React, { createContext, useContext, useState, useCallback, ReactNode, useEffect } from 'react';
 import api from '../api';
-import { UserProfile } from '../App';
-import { Adventure } from './AdventureSelection';
+import { Adventure, UserProfile } from '../interface';
 
 interface GameContextType {
   score: number;

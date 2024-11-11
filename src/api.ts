@@ -3,7 +3,7 @@
 import axios, { AxiosResponse } from 'axios';
 import { LeaderboardEntry } from './components/Leaderboard';
 import { fetchAuthSession } from 'aws-amplify/auth';
-import { Adventure } from './components/AdventureSelection';
+import { Adventure } from './interface';
 
 const API_URL = process.env.REACT_APP_API_URL || 'https://your-default-api-url.com';
 
