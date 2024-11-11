@@ -5,11 +5,12 @@ import { BrowserRouter as Router, Route, Routes, Navigate } from 'react-router-d
 
 import '@aws-amplify/ui-react/styles.css';
 import Game from './components/Game';
-import AdventureSelection, { Adventure } from './components/AdventureSelection';
+import AdventureSelection from './components/AdventureSelection';
 import './aws-config';
 import Header from './components/Header';
 import LandingPage from './components/LandingPage';
 import LeaderboardPage from './components/LeaderboardPage';
+import { Link, useNavigate } from 'react-router-dom';
 
 const theme: Theme = {
   name: 'custom-theme',
@@ -57,10 +58,8 @@ export interface UserProfile {
 
 function AuthenticatedApp() {
   const { signOut } = useAuthenticator((context) => [context.user]);
-  const [selectedAdventure, setSelectedAdventure] = useState<Adventure>();
   const [userProfile, setUserProfile] = useState<UserProfile>();
-  const [showAdventureSelection, setShowAdventureSelection] = useState(true);
-  const [showLeaderboard, setShowLeaderboard] = useState(false);
+  const navigate = useNavigate();
 
   useEffect(() => {
     async function fetchUsername() {
@@ -77,38 +76,21 @@ function AuthenticatedApp() {
     fetchUsername();
   }, []);
 
+  const handleSignOut = () => {
+    signOut();
+    navigate('/');
+  };
+
   return (
     <div className="flex flex-col min-h-screen bg-gray-100">
-      <Header
-        userProfile={userProfile}
-        showAdventureSelection={showAdventureSelection}
-        selectedAdventure={selectedAdventure}
-        onChangeAdventure={() => {
-          setShowAdventureSelection(true);
-          setShowLeaderboard(false);
-        }}
-        onShowLeaderboard={() => {
-          setShowLeaderboard(true);
-          setShowAdventureSelection(false);
-        }}
-        onSignOut={signOut}
-      />
+      <Header userProfile={userProfile} onSignOut={handleSignOut} />
       <main className="flex-grow container mx-auto px-4 py-8">
-        {showLeaderboard ? (
-          <LeaderboardPage />
-        ) : showAdventureSelection ? (
-          <div className="bg-white rounded-lg shadow-lg p-6">
-            <AdventureSelection
-              userProfile={userProfile}
-              onAdventureSelect={(adventure) => {
-                setSelectedAdventure(adventure);
-                setShowAdventureSelection(false);
-              }}
-            />
-          </div>
-        ) : (
-          selectedAdventure && <Game adventure={selectedAdventure} userProfile={userProfile!} />
-        )}
+        <Routes>
+          <Route path="leaderboard" element={<LeaderboardPage />} />
+          <Route path="adventure-selection" element={<AdventureSelection userProfile={userProfile} />} />
+          <Route path=":adventureId" element={<Game userProfile={userProfile!} />} />
+          <Route path="/" element={<Navigate to="/game/adventure-selection" replace />} />
+        </Routes>
       </main>
     </div>
   );
@@ -123,7 +105,7 @@ function App() {
             <Routes>
               <Route path="/" element={<LandingPage />} />
               <Route path="/signin" element={<AuthFlow />} />
-              <Route path="/game" element={<ProtectedRoute><AuthenticatedApp /></ProtectedRoute>} />
+              <Route path="/game/*" element={<ProtectedRoute><AuthenticatedApp /></ProtectedRoute>} />
             </Routes>
           </div>
         </Router>

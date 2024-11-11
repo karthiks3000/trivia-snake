@@ -9,6 +9,7 @@ import AdventureCreation, { GENRES } from './AdventureCreation';
 import { Question } from './QuestionForm';
 import { Input } from "./ui/Input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "./ui/Select";
+import { useNavigate } from 'react-router-dom';
 
 export interface Adventure {
   id?: string;
@@ -23,10 +24,11 @@ export interface Adventure {
 
 interface AdventureSelectionProps {
   userProfile: UserProfile | undefined;
-  onAdventureSelect: (adventure: Adventure) => void;
 }
 
-const AdventureSelection: React.FC<AdventureSelectionProps> = ({ userProfile, onAdventureSelect }) => {
+const AdventureSelection: React.FC<AdventureSelectionProps> = ({ userProfile }) => {
+  const navigate = useNavigate();
+  const [sortBy, setSortBy] = useState('name');
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [adventures, setAdventures] = useState<Adventure[]>([]);
   const [filteredAdventures, setFilteredAdventures] = useState<Adventure[]>([]);
@@ -39,13 +41,29 @@ const AdventureSelection: React.FC<AdventureSelectionProps> = ({ userProfile, on
     fetchAdventures();
   }, []);
 
+  const handleAdventureSelect = (adventure: Adventure) => {
+    if (adventure.id) {
+      navigate(`/game/${adventure.id}`, {
+        state: { adventure } // Pass the entire adventure object in state
+      });
+    }
+  };
+
   useEffect(() => {
     const filtered = adventures.filter(adventure => 
       adventure.name.toLowerCase().includes(searchTerm.toLowerCase()) &&
       (selectedGenre == 'All' || adventure.genre === selectedGenre)
     );
-    setFilteredAdventures(filtered);
-  }, [adventures, searchTerm, selectedGenre]);
+    const sorted = [...filtered].sort((a, b) => {
+      if (sortBy === 'name') {
+        return a.name.localeCompare(b.name);
+      } else if (sortBy === 'genre') {
+        return a.genre.localeCompare(b.genre);
+      }
+      return 0;
+    });
+    setFilteredAdventures(sorted);
+  }, [adventures, searchTerm, selectedGenre, sortBy]);
 
   const fetchAdventures = async () => {
     try {
@@ -112,6 +130,15 @@ const AdventureSelection: React.FC<AdventureSelectionProps> = ({ userProfile, on
             ))}
           </SelectContent>
         </Select>
+        <Select onValueChange={setSortBy} value={sortBy}>
+          <SelectTrigger className="w-[180px]">
+            <SelectValue placeholder="Sort by" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="name">Name</SelectItem>
+            <SelectItem value="genre">Genre</SelectItem>
+          </SelectContent>
+        </Select>
       </div>
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         {filteredAdventures.map((adventure) => (
@@ -128,7 +155,7 @@ const AdventureSelection: React.FC<AdventureSelectionProps> = ({ userProfile, on
             <CardFooter className="p-4">
               <Button 
                 className="w-full" 
-                onClick={() => onAdventureSelect(adventure)}
+                onClick={() => handleAdventureSelect(adventure)}
                 disabled={adventure.verificationStatus !== 'verified'}
               >
                 {adventure.verificationStatus === 'verified' ? 'Start Adventure' : 'Not Available'}

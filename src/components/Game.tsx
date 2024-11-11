@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useEffect, useMemo } from 'react';
+import React, { useState, useCallback, useEffect, useMemo, useRef } from 'react';
 import { GameProvider, useGameContext } from './GameContext';
 import LoadingScreen from './LoadingScreen';
 import ErrorScreen from './ErrorScreen';
@@ -9,13 +9,21 @@ import { LeaderboardEntry } from './Leaderboard';
 import { UserProfile } from '../App';
 import { Card, CardContent } from './ui/Card';
 import { Adventure } from './AdventureSelection';
+import { useLocation, useParams } from 'react-router-dom';
 
 interface GameProps {
-  adventure: Adventure;
   userProfile: UserProfile;
 }
 
-const GameInner: React.FC<GameProps> = ({ adventure: selectedAdventure }) => {
+interface LocationState {
+  adventure: Adventure;
+}
+
+const GameInner: React.FC<GameProps> = ({  userProfile }) => {
+  const { adventureId } = useParams();
+  const location = useLocation();
+  
+  const timerRef = useRef<NodeJS.Timeout | null>(null);
   const { 
     setScore, 
     setGameOver, 
@@ -24,7 +32,6 @@ const GameInner: React.FC<GameProps> = ({ adventure: selectedAdventure }) => {
     score,
     elapsedTime,
     setElapsedTime,
-    userProfile,
     gameOver,
   } = useGameContext();
 
@@ -33,6 +40,17 @@ const GameInner: React.FC<GameProps> = ({ adventure: selectedAdventure }) => {
   const [adventure, setAdventure] = useState<Adventure | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+
+  // Get the adventure from location state
+  useEffect(() => {
+    const state = location.state as LocationState;
+    if (state?.adventure) {
+      setAdventure(state.adventure);
+    } else {
+      // Fallback to fetching adventure if state is not available
+      fetchQuestions();
+    }
+  }, [location.state]);
 
   const fetchLeaderboard = useCallback(async () => {
     try {
@@ -47,7 +65,7 @@ const GameInner: React.FC<GameProps> = ({ adventure: selectedAdventure }) => {
   const fetchQuestions = useCallback(async () => {
     setIsLoading(true);
     try {
-      const response = await api.getAdventure(selectedAdventure.id!);
+      const response = await api.getAdventure(adventureId!);
       if (!response.data) throw new Error(`HTTP error! status: ${response.status}`);
       const data: Adventure = await response.data;
       setAdventure(data);
@@ -58,7 +76,7 @@ const GameInner: React.FC<GameProps> = ({ adventure: selectedAdventure }) => {
     } finally {
       setIsLoading(false);
     }
-  }, [selectedAdventure]);
+  }, [adventureId]);
 
   useEffect(() => {
     fetchQuestions();
@@ -96,7 +114,7 @@ const GameInner: React.FC<GameProps> = ({ adventure: selectedAdventure }) => {
       if (currentQuestionIndex === adventure!.questions.length - 1) {
         setGameWon(true);
         setGameOver(true);
-        updateLeaderboardFromContext(newScore, selectedAdventure).then(() => fetchLeaderboard());
+        updateLeaderboardFromContext(newScore, adventure!).then(() => fetchLeaderboard());
       } else {
         setCurrentQuestionIndex(prevIndex => prevIndex + 1);
       }
@@ -106,15 +124,21 @@ const GameInner: React.FC<GameProps> = ({ adventure: selectedAdventure }) => {
 
   const handleWrongAnswer = () => {
     setGameOver(true);
-    updateLeaderboardFromContext(score, selectedAdventure).then(() => fetchLeaderboard());
+    if (timerRef.current) {
+      clearInterval(timerRef.current);
+    }
+    updateLeaderboardFromContext(score, adventure!).then(() => fetchLeaderboard());
   };
 
   useEffect(() => {
-    let timer: NodeJS.Timeout;
     if (!gameOver) {
-      timer = setInterval(() => setElapsedTime(prevTime => prevTime + 1), 1000);
+      timerRef.current = setInterval(() => setElapsedTime(prevTime => prevTime + 1), 1000);
     }
-    return () => { if (timer) clearInterval(timer); };
+    return () => {
+      if (timerRef.current) {
+        clearInterval(timerRef.current);
+      }
+    };
   }, [gameOver, setElapsedTime]);
 
   if (isLoading) return <LoadingScreen />;
@@ -137,10 +161,10 @@ const GameInner: React.FC<GameProps> = ({ adventure: selectedAdventure }) => {
   return null;
 };
 
-const Game: React.FC<GameProps> = ({ adventure, userProfile }) => {
+const Game: React.FC<GameProps> = ({ userProfile }) => {
   return (
     <GameProvider userProfile={userProfile}>
-      <GameInner adventure={adventure} userProfile={userProfile} />
+      <GameInner userProfile={userProfile} />
     </GameProvider>
   );
 };
