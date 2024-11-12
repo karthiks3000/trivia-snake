@@ -1,0 +1,28 @@
+// lambda/tsconfig.json
+{
+    "compilerOptions": {
+      "target": "ES2018",
+      "module": "commonjs",
+      "lib": ["es2018"],
+      "strict": true,
+      "noImplicitAny": true,
+      "strictNullChecks": true,
+      "noImplicitThis": true,
+      "alwaysStrict": true,
+      "noUnusedLocals": true,
+      "noUnusedParameters": true,
+      "noImplicitReturns": true,
+      "noFallthroughCasesInSwitch": true,
+      "inlineSourceMap": true,
+      "inlineSources": true,
+      "experimentalDecorators": true,
+      "strictPropertyInitialization": true,
+      "typeRoots": ["../node_modules/@types"],
+      "outDir": "dist",
+      "rootDir": "./",
+      "types": ["node"],
+      "esModuleInterop": true
+    },
+    "exclude": ["node_modules", "dist", "test", "**/*.test.ts"]
+  }
+  

@@ -10,6 +10,7 @@ import { Question } from './QuestionForm';
 import { Input } from "./ui/Input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "./ui/Select";
 import { useNavigate } from 'react-router-dom';
+import GameModeModal from './GameModeModal';
 
 export interface Adventure {
   id?: string;
@@ -36,17 +37,33 @@ const AdventureSelection: React.FC<AdventureSelectionProps> = ({ userProfile }) 
   const [error, setError] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedGenre, setSelectedGenre] = useState('All');
-
+  const [isGameModeModalOpen, setIsGameModeModalOpen] = useState(false);
+  const [selectedAdventure, setSelectedAdventure] = useState<Adventure | null>(null);
+  
   useEffect(() => {
     fetchAdventures();
   }, []);
 
   const handleAdventureSelect = (adventure: Adventure) => {
-    if (adventure.id) {
-      navigate(`/game/${adventure.id}`, {
-        state: { adventure } // Pass the entire adventure object in state
+    setSelectedAdventure(adventure);
+    setIsGameModeModalOpen(true);
+  };
+
+  const handleGameModeSelect = (mode: 'single' | 'multiplayer') => {
+    if (!selectedAdventure) return;
+
+    if (mode === 'single') {
+      // Navigate to single player game
+      navigate(`/game/${selectedAdventure.id}`, {
+        state: { adventure: selectedAdventure }
+      });
+    } else {
+      // Navigate to multiplayer lobby
+      navigate(`/game/multiplayer/${selectedAdventure.id}`, {
+        state: { adventure: selectedAdventure }
       });
     }
+    setIsGameModeModalOpen(false);
   };
 
   useEffect(() => {
@@ -189,6 +206,13 @@ const AdventureSelection: React.FC<AdventureSelectionProps> = ({ userProfile }) 
         onClose={() => setIsCreateModalOpen(false)}
         onAdventureCreated={handleAdventureCreated}
         userProfile={userProfile}
+      />
+
+      <GameModeModal
+        isOpen={isGameModeModalOpen}
+        onClose={() => setIsGameModeModalOpen(false)}
+        onSelectMode={handleGameModeSelect}
+        adventureName={selectedAdventure?.name || ''}
       />
     </div>
   );

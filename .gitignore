@@ -26,3 +26,8 @@ yarn-error.log*
 .cdk.staging
 cdk.out
 .env.*
+
+node_modules
+infra/node_modules
+lambda/node_modules
+lambda/dist/*

@@ -11,6 +11,8 @@ import Header from './components/Header';
 import LandingPage from './components/LandingPage';
 import LeaderboardPage from './components/LeaderboardPage';
 import { Link, useNavigate } from 'react-router-dom';
+import MultiplayerLobby from './components/MultiplayerLobby';
+import MultiplayerGame from './components/MultiplayerGame';
 
 const theme: Theme = {
   name: 'custom-theme',
@@ -90,6 +92,7 @@ function AuthenticatedApp() {
           <Route path="adventure-selection" element={<AdventureSelection userProfile={userProfile} />} />
           <Route path=":adventureId" element={<Game userProfile={userProfile!} />} />
           <Route path="/" element={<Navigate to="/game/adventure-selection" replace />} />
+          <Route path="multiplayer/:adventureId" element={<MultiplayerLobby userProfile={userProfile!} />} />
         </Routes>
       </main>
     </div>
