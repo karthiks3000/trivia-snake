@@ -353,6 +353,16 @@ export class TriviaSnakeStack extends cdk.Stack {
       removalPolicy: cdk.RemovalPolicy.DESTROY, // For development
     });
 
+    // DynamoDB table for storing player responses
+    const playerResponsesTable = new dynamodb.Table(this, 'PlayerResponsesTable', {
+      name: 'PlayerResponsesTable',
+      partitionKey: { name: 'sessionId', type: dynamodb.AttributeType.STRING },
+      sortKey: { name: 'userId', type: dynamodb.AttributeType.STRING },
+      timeToLiveAttribute: 'ttl', // Auto-delete stale connections
+      removalPolicy: cdk.RemovalPolicy.DESTROY, // For development
+      billingMode: dynamodb.BillingMode.PAY_PER_REQUEST,
+    });
+
     // Output the API URL and CloudFront URL
     new cdk.CfnOutput(this, 'ApiUrl', { value: api.url });
     new cdk.CfnOutput(this, 'CloudFrontUrl', { value: `https://${distribution.domainName}` });
@@ -403,6 +413,7 @@ export class TriviaSnakeStack extends cdk.Stack {
       environment: {
         CONNECTION_TABLE_NAME: connectionMappingTable.tableName,
         GAME_SESSIONS_TABLE_NAME: gameSessionsTable.tableName,
+        PLAYER_RESPONSES_TABLE_NAME: playerResponsesTable.tableName
       },
       timeout: cdk.Duration.seconds(30),
     });
@@ -432,6 +443,7 @@ export class TriviaSnakeStack extends cdk.Stack {
     connectionMappingTable.grantReadWriteData(websocketDisconnectFunction);
     connectionMappingTable.grantReadWriteData(websocketMessageFunction);
     gameSessionsTable.grantReadWriteData(websocketMessageFunction);
+    playerResponsesTable.grantReadWriteData(websocketMessageFunction);
 
     // Grant WebSocket management permissions
     const webSocketManagementPolicy = new iam.PolicyStatement({

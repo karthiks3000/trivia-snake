@@ -83,20 +83,6 @@ const GameInner: React.FC<GameProps> = ({  userProfile }) => {
     fetchLeaderboard();
   }, [fetchQuestions, fetchLeaderboard]);
 
-  const currentQuestion = useMemo(() => {
-    if (adventure && currentQuestionIndex < adventure.questions.length) {
-      const question = adventure.questions[currentQuestionIndex];
-      const shuffledOptions = [...question.options].sort(() => Math.random() - 0.5);
-      const correctAnswerIndex = shuffledOptions.findIndex(option => option === question.correctAnswer);
-      return { 
-        question: question.question,
-        options: shuffledOptions, 
-        correctAnswer: question.correctAnswer,
-        correctLetter: String.fromCharCode(65 + correctAnswerIndex)
-      };
-    }
-    return null;
-  }, [adventure, currentQuestionIndex]);
 
   const resetGame = useCallback(() => {
     setCurrentQuestionIndex(0);
@@ -144,12 +130,13 @@ const GameInner: React.FC<GameProps> = ({  userProfile }) => {
   if (isLoading) return <LoadingScreen />;
   if (error) return <ErrorScreen />;
   if (gameOver) return <GameOverScreen resetGame={resetGame} leaderboard={leaderboard} />;
-  if (currentQuestion) {
+  if (adventure) {
     return (
       <Card className="w-full h-full">
         <CardContent className="p-0">
           <GameScreen
-            currentQuestion={currentQuestion}
+            adventure={adventure}
+            currentQuestionIndex={currentQuestionIndex}
             handleCorrectAnswer={handleCorrectAnswer}
             handleWrongAnswer={handleWrongAnswer}
           />

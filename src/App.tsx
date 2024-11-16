@@ -2,7 +2,6 @@ import { useEffect, useState } from 'react';
 import { fetchUserAttributes } from 'aws-amplify/auth';
 import { Authenticator, ThemeProvider, Theme, View, useAuthenticator } from '@aws-amplify/ui-react';
 import { BrowserRouter as Router, Route, Routes, Navigate } from 'react-router-dom';
-
 import '@aws-amplify/ui-react/styles.css';
 import Game from './components/Game';
 import AdventureSelection from './components/AdventureSelection';
@@ -10,9 +9,9 @@ import './aws-config';
 import Header from './components/Header';
 import LandingPage from './components/LandingPage';
 import LeaderboardPage from './components/LeaderboardPage';
-import { Link, useNavigate } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import MultiplayerLobby from './components/MultiplayerLobby';
-import MultiplayerGame from './components/MultiplayerGame';
+import { WebSocketProvider } from './WebSocketContext';
 
 const theme: Theme = {
   name: 'custom-theme',
@@ -63,6 +62,7 @@ function AuthenticatedApp() {
   const [userProfile, setUserProfile] = useState<UserProfile>();
   const navigate = useNavigate();
 
+
   useEffect(() => {
     async function fetchUsername() {
       try {
@@ -83,19 +83,26 @@ function AuthenticatedApp() {
     navigate('/');
   };
 
+  if (!userProfile) {
+    return <div>Loading...</div>;
+  }
+
   return (
-    <div className="flex flex-col min-h-screen bg-gray-100">
-      <Header userProfile={userProfile} onSignOut={handleSignOut} />
-      <main className="flex-grow container mx-auto px-4 py-8">
-        <Routes>
-          <Route path="leaderboard" element={<LeaderboardPage />} />
-          <Route path="adventure-selection" element={<AdventureSelection userProfile={userProfile} />} />
-          <Route path=":adventureId" element={<Game userProfile={userProfile!} />} />
-          <Route path="/" element={<Navigate to="/game/adventure-selection" replace />} />
-          <Route path="multiplayer/:adventureId" element={<MultiplayerLobby userProfile={userProfile!} />} />
-        </Routes>
-      </main>
-    </div>
+    <WebSocketProvider userProfile={userProfile!}>
+      <div className="flex flex-col min-h-screen bg-gray-100">
+        <Header userProfile={userProfile} onSignOut={handleSignOut} />
+        <main className="flex-grow container mx-auto px-4 py-8">
+          <Routes>
+            <Route path="leaderboard" element={<LeaderboardPage />} />
+            <Route path="adventure-selection" element={<AdventureSelection userProfile={userProfile} />} />
+            <Route path=":adventureId" element={<Game userProfile={userProfile!} />} />
+            <Route path="/" element={<Navigate to="/game/adventure-selection" replace />} />
+            <Route path="multiplayer/:adventureId" element={<MultiplayerLobby userProfile={userProfile!} />} />
+
+          </Routes>
+        </main>
+      </div>
+    </WebSocketProvider>
   );
 }
 
@@ -108,7 +115,7 @@ function App() {
             <Routes>
               <Route path="/" element={<LandingPage />} />
               <Route path="/signin" element={<AuthFlow />} />
-              <Route path="/game/*" element={<ProtectedRoute><AuthenticatedApp /></ProtectedRoute>} />
+              <Route path="/game/*" element={<ProtectedRoute> <AuthenticatedApp /></ProtectedRoute>} />
             </Routes>
           </div>
         </Router>

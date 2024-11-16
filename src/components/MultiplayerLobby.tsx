@@ -3,11 +3,12 @@ import { useParams, useLocation, useNavigate } from 'react-router-dom';
 import { Button } from './ui/Button';
 import { Input } from './ui/Input';
 import { Card, CardHeader, CardContent, CardFooter } from './ui/Card';
-import { useWebSocket } from '../hooks/useWebSocket';
 import { UserProfile } from '../App';
 import { Player, WebSocketResponse } from '../interface';
 import { Adventure } from './AdventureSelection';
 import MultiplayerGame from './MultiplayerGame';
+import { useWebSocket } from '../WebSocketContext';
+import { GameProvider } from './GameContext';
 
 interface MultiplayerLobbyProps {
   userProfile: UserProfile;
@@ -23,7 +24,7 @@ const MultiplayerLobby: React.FC<MultiplayerLobbyProps> = ({ userProfile }) => {
   const [joinCode, setJoinCode] = useState('');
   const [players, setPlayers] = useState<Player[]>([]);
   const [isHost, setIsHost] = useState(false);
-  const { isConnected, lastMessage, sendMessage, disconnect } = useWebSocket();
+  const { isConnected, sendMessage, lastMessage } = useWebSocket();
   const [isCreating, setIsCreating] = useState(false);
   const [isJoining, setIsJoining] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -38,8 +39,7 @@ const MultiplayerLobby: React.FC<MultiplayerLobbyProps> = ({ userProfile }) => {
   useEffect(() => {
     if (lastMessage) {
       try {
-        const data = JSON.parse(lastMessage) as WebSocketResponse;
-        handleWebSocketMessage(data);
+        handleWebSocketMessage(lastMessage);
       } catch (error) {
         console.error('Failed to parse WebSocket message:', error);
       }
@@ -56,11 +56,12 @@ const MultiplayerLobby: React.FC<MultiplayerLobbyProps> = ({ userProfile }) => {
         }
         break;
       case 'gameStarted':
+        console.log(adventure.name);
         setGameStarted(true);
-            setGameState({
-              questionIndex: data.questionIndex!,
-              timeLimit: data.timeLimit!
-            });
+        setGameState({
+          questionIndex: data.questionIndex!,
+          timeLimit: data.timeLimit!
+        });
         break;
     }
   };
@@ -117,8 +118,6 @@ const MultiplayerLobby: React.FC<MultiplayerLobbyProps> = ({ userProfile }) => {
         username: userProfile.username
       });
 
-      console.log('Join session response:', response);
-
       if (response.sessionId) {
         setSessionId(response.sessionId);
         // If the response includes existing players, set them
@@ -132,39 +131,7 @@ const MultiplayerLobby: React.FC<MultiplayerLobbyProps> = ({ userProfile }) => {
     } finally {
       setIsJoining(false);
     }
-  };
-
-    // Handle leaving the lobby
-    const handleLeaveLobby = useCallback(() => {
-      try {
-        if (sessionId) {
-          // Send leave message to server if needed
-          sendMessage({
-            action: 'leaveSession',
-            sessionId,
-            userId: userProfile.userId
-          }).finally(() => {
-            // Disconnect WebSocket
-            disconnect();
-            // Reset states
-            setSessionId(null);
-            setPlayers([]);
-          });
-        }
-      } catch (error) {
-        console.error('Error leaving lobby:', error);
-      } finally{
-        // Navigate or handle UI change
-        navigate('/game/adventure-selection');
-      }
-    }, [sessionId, userProfile.userId, disconnect, navigate]);
-  
-    // Add cleanup on unmount
-    useEffect(() => {
-      return () => {
-        disconnect();
-      };
-    }, [disconnect]);
+  }; 
 
   // Add a loading state
   if (!isConnected) {
@@ -181,13 +148,15 @@ const MultiplayerLobby: React.FC<MultiplayerLobbyProps> = ({ userProfile }) => {
 
   if (gameStarted && gameState && sessionId) {
     return (
-      <MultiplayerGame
-        userProfile={userProfile}
-        adventure={adventure}
-        sessionId={sessionId}
-        initialQuestionIndex={gameState.questionIndex}
-        timeLimit={gameState.timeLimit}
-      />
+      <GameProvider userProfile={userProfile}>
+        <MultiplayerGame
+          userProfile={userProfile}
+          adventure={adventure}
+          sessionId={sessionId}
+          initialQuestionIndex={gameState.questionIndex}
+          timeLimit={gameState.timeLimit}
+        />
+      </GameProvider>
     );
   }
 
@@ -241,7 +210,7 @@ const MultiplayerLobby: React.FC<MultiplayerLobbyProps> = ({ userProfile }) => {
           )}
         </CardContent>
         <CardFooter className="flex justify-between">
-          <Button variant="outline" onClick={handleLeaveLobby}>
+          <Button variant="outline" >
             Leave Lobby
           </Button>
           {(sessionId && isHost)

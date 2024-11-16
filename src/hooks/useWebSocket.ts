@@ -1,8 +1,15 @@
 // hooks/useWebSocket.ts
 import { useState, useRef, useCallback, useEffect } from 'react';
-import { fetchAuthSession, getCurrentUser } from 'aws-amplify/auth';
+import { getCurrentUser } from 'aws-amplify/auth';
 import { WebSocketMessage } from '../interface';
 
+
+export type WebSocketConnection = {
+  isConnected: boolean;
+  lastMessage: string | null;
+  sendMessage: (message: any) => Promise<any>;
+  disconnect: () => void;
+};
 
 export const useWebSocket = () => {
   const [isConnected, setIsConnected] = useState(false);
@@ -29,13 +36,10 @@ export const useWebSocket = () => {
     const connectWebSocket = async () => {
       try {
         // Don't create a new connection if one exists or if we shouldn't reconnect
-        if (wsRef.current || !shouldReconnect.current) {
+        if (wsRef.current) {
           return;
         }
-
-        const { tokens } = await fetchAuthSession();
         const user = await getCurrentUser();
-        const idToken = 'Bearer ' + tokens?.idToken?.toString();
 
         const wsUrl = `${process.env.REACT_APP_WEBSOCKET_URL}?userId=${user.userId}&username=${user.username}`;
         const socket = new WebSocket(wsUrl);
@@ -89,15 +93,9 @@ export const useWebSocket = () => {
       }
     };
 
-    // Set shouldReconnect to true when the effect runs
-    shouldReconnect.current = true;
     connectWebSocket();
 
-    // Cleanup function
-    return () => {
-      disconnect();
-    };
-  }, [connectionAttempts, disconnect]);
+  }, []);
 
 
 

@@ -3,7 +3,8 @@ import {
   DynamoDBDocumentClient, 
   GetCommand, 
   PutCommand, 
-  UpdateCommand 
+  UpdateCommand,
+  QueryCommand
 } from '@aws-sdk/lib-dynamodb';
 import { GameSession, generateSessionId, broadcastToSession } from './utils';
 
@@ -11,6 +12,7 @@ const ddbClient = new DynamoDBClient({});
 const dynamoDB = DynamoDBDocumentClient.from(ddbClient);
 const CONNECTION_TABLE = process.env.CONNECTION_TABLE_NAME!;
 const GAME_SESSIONS_TABLE = process.env.GAME_SESSIONS_TABLE_NAME!;
+const PLAYER_RESPONSES_TABLE = process.env.PLAYER_RESPONSES_TABLE_NAME!;
 
 export const handler = async (event: any) => {
   const connectionId = event.requestContext.connectionId;
@@ -25,12 +27,12 @@ export const handler = async (event: any) => {
         return handleCreateSession(connectionId, body);
       case 'joinSession':
         return handleJoinSession(connectionId, body, domainName, stage);
-      case 'toggleReady':
-        return handleToggleReady(connectionId, body, domainName, stage);
       case 'startGame':
         return handleStartGame(connectionId, body, domainName, stage);
       case 'submitAnswer':
-        return handleSubmitAnswer(connectionId, body, domainName, stage);
+        return handleSubmitAnswer(body, domainName, stage);
+      case 'checkQuestionState':
+        return checkQuestionState(body, domainName, stage);
       default:
         return { statusCode: 400, body: 'Invalid action' };
     }
@@ -57,8 +59,7 @@ async function handleCreateSession(connectionId: string, body: any) {
       username,
       connectionId,
       score: 0,
-      ready: true,
-      answered: false
+      ready: true
     }],
     questionTimeLimit: 30,
     ttl: Math.floor(Date.now() / 1000) + 24 * 60 * 60,
@@ -108,8 +109,7 @@ async function handleJoinSession(connectionId: string, body: any, domainName: st
       username,
       connectionId,
       score: 0,
-      ready: true,
-      answered: false
+      ready: true
     }
   ];
 
@@ -134,53 +134,8 @@ async function handleJoinSession(connectionId: string, body: any, domainName: st
   await broadcastToSession(
     sessionId,
     {
+      sessionId: sessionId,
       action: 'playerJoined',
-      players: updatedPlayers
-    },
-    domainName,
-    stage
-  );
-
-  return {
-    statusCode: 200,
-    body: JSON.stringify({ sessionId })
-  };
-}
-
-async function handleToggleReady(connectionId: string, body: any, domainName: string, stage: string) {
-  const { sessionId } = body;
-
-  const session = await dynamoDB.send(new GetCommand({
-    TableName: GAME_SESSIONS_TABLE,
-    Key: { sessionId }
-  }));
-
-  if (!session.Item) {
-    return {
-      statusCode: 400,
-      body: 'Invalid session'
-    };
-  }
-
-  const updatedPlayers = session.Item.players.map((player: { connectionId: string; ready: any; }) =>
-    player.connectionId === connectionId
-      ? { ...player, ready: !player.ready }
-      : player
-  );
-
-  await dynamoDB.send(new UpdateCommand({
-    TableName: GAME_SESSIONS_TABLE,
-    Key: { sessionId },
-    UpdateExpression: 'SET players = :players',
-    ExpressionAttributeValues: {
-      ':players': updatedPlayers
-    }
-  }));
-
-  await broadcastToSession(
-    sessionId,
-    {
-      action: 'playerReady',
       players: updatedPlayers
     },
     domainName,
@@ -245,78 +200,148 @@ async function handleStartGame(connectionId: string, body: any, domainName: stri
 }
 
 
-async function handleSubmitAnswer(connectionId: string, body: any, domainName: string, stage: string) {
-  const { sessionId, correct, userId } = body;
+async function handleSubmitAnswer(body: any, domainName: string, stage: string) {
+  const { sessionId, correct, userId, questionId, timeElapsed } = body;
 
-  console.log('Connection ID = ' + connectionId);
+  try {
+    // Check if the player already has a record
+    const existingResponse = await dynamoDB.send(new GetCommand({
+      TableName: PLAYER_RESPONSES_TABLE,
+      Key: { sessionId, userId }
+    }));
 
+    if (existingResponse.Item) {
+      // Player has answered previous questions - check if this question was already answered
+      if (existingResponse.Item.responses && existingResponse.Item.responses[questionId]) {
+        return {
+          statusCode: 409,
+          body: JSON.stringify({ error: 'Answer already submitted for this question' })
+        };
+      }
+
+      // Get existing responses and score
+      const currentScore = existingResponse.Item.score || 0;
+      const currentResponses = existingResponse.Item.responses || {};
+      // Create new complete item
+      const updatedItem = {
+        sessionId,
+        userId,
+        score: correct ? currentScore + 1 : currentScore,
+        responses: {
+          ...currentResponses,
+          [questionId]: {
+            correct,
+            answered: true,
+            timeElapsed
+          }
+        }
+      };
+
+      // Update the entire item
+      await dynamoDB.send(new PutCommand({
+        TableName: PLAYER_RESPONSES_TABLE,
+        Item: updatedItem
+      }));
+
+    } else {
+      // First answer from this player - create new record
+      await dynamoDB.send(new PutCommand({
+        TableName: PLAYER_RESPONSES_TABLE,
+        Item: {
+          sessionId,
+          userId,
+          score: correct ? 1 : 0,
+          responses: {
+            [questionId]: {
+              correct,
+              answered: true,
+              timeElapsed
+            }
+          }
+        }
+      }));
+    }
+
+    const newScore = correct ? 
+      (existingResponse?.Item?.score || 0) + 1 : 
+      (existingResponse?.Item?.score || 0);
+
+    // Broadcast the update to all players
+    await broadcastToSession(
+      sessionId,
+      {
+        sessionId: sessionId,
+        action: 'playerAnswered',
+        userId: userId,
+        score: newScore
+      },
+      domainName,
+      stage
+    );
+
+    return {
+      statusCode: 200,
+      body: JSON.stringify({ 
+        sessionId,
+        score: newScore
+      })
+    };
+
+  } catch (error: any) {
+    console.error('Error in handleSubmitAnswer:', error);
+    throw error;
+  }
+}
+
+
+async function checkQuestionState(body: any, domainName: string, stage: string) {
+  const { sessionId, questionId } = body;
+
+  // Get the current session state
   const session = await dynamoDB.send(new GetCommand({
     TableName: GAME_SESSIONS_TABLE,
     Key: { sessionId },
   }));
 
-  console.log('session = ' + session.Item);
-
-
   if (!session.Item || session.Item.sessionStatus !== 'IN_PROGRESS') {
     return {
-      statusCode: 400,
-      body: JSON.stringify({error: 'Invalid session or game not in progress'})
+      statusCode: 200,
+      body: JSON.stringify({ allAnswered: true })
     };
   }
+  try {
+    // Get all player responses for this session
+    const playerResponses = await dynamoDB.send(new QueryCommand({
+      TableName: PLAYER_RESPONSES_TABLE,
+      KeyConditionExpression: 'sessionId = :sessionId',
+      ExpressionAttributeValues: {
+        ':sessionId': session.Item.sessionId
+      }
+    }));
 
-  const playerIndex = session.Item.players.findIndex(
-    (    p: { userId: string; }) => p.userId === userId
-  );
+    // Check if all players have answered the current question
+    const allAnswered = session.Item.players.every((player: any) => {
+      const playerResponse = playerResponses.Items?.find((item: any) => item.userId === player.userId);
+      player.score = playerResponse?.score ?? 0;
+      return playerResponse?.responses?.[questionId]?.answered ?? false;
+    });
 
-  if (playerIndex === -1 || session.Item.players[playerIndex].answered) {
-    return {
-      statusCode: 400,
-      body: JSON.stringify({error: 'Invalid player or already answered'})
-    };
-  }
-
-  const updatedPlayers = session.Item.players.map((player: { userId: string; score: number; }) =>
-    player.userId === userId
-      ? {
-          ...player,
-          score: correct ? (player.score || 0) + 1 : (player.score || 0),
-          answered: true
-        }
-      : player
-  );
-
-  await dynamoDB.send(new UpdateCommand({
-    TableName: GAME_SESSIONS_TABLE,
-    Key: { sessionId },
-    UpdateExpression: 'SET players = :players',
-    ExpressionAttributeValues: {
-      ':players': updatedPlayers
+    if (allAnswered) {
+      await handleQuestionComplete(session.Item as GameSession, domainName, stage);
     }
-  }));
-
-  // await broadcastToSession(
-  //   sessionId,
-  //   {
-  //     action: 'playerAnswered',
-  //     userId: session.Item.players[playerIndex].userId,
-  //     score: scoreIncrement,
-  //     players: updatedPlayers
-  //   },
-  //   domainName,
-  //   stage
-  // );
-
-  // Check if all players have answered
-  if (updatedPlayers.every((p: { answered: any; }) => p.answered)) {
-    await handleQuestionComplete(session.Item as GameSession, domainName, stage);
+    return {
+      statusCode: 200,
+      body: JSON.stringify({
+        allAnswered,
+        players: session.Item.players
+      })
+    };
+  } catch (error: any) {
+    console.error('Error in checkAllPlayersAnswered:', error);
+    throw error;
   }
-
-  return {
-    statusCode: 200,
-    body: JSON.stringify({ sessionId })
-  };
 }
+
 
 async function handleQuestionTimeout(
   sessionId: string,
