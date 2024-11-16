@@ -306,7 +306,7 @@ async function checkQuestionState(body: any, domainName: string, stage: string) 
   if (!session.Item || session.Item.sessionStatus !== 'IN_PROGRESS') {
     return {
       statusCode: 200,
-      body: JSON.stringify({ allAnswered: true })
+      body: JSON.stringify({ sessionId, allAnswered: true })
     };
   }
   try {
@@ -332,6 +332,7 @@ async function checkQuestionState(body: any, domainName: string, stage: string) 
     return {
       statusCode: 200,
       body: JSON.stringify({
+        sessionId,
         allAnswered,
         players: session.Item.players
       })

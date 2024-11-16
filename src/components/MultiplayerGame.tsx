@@ -1,13 +1,13 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { UserProfile } from '../App';
 import { Adventure } from './AdventureSelection';
-import Grid from './Grid';
 import { Card, CardContent } from './ui/Card';
 import { useWebSocket } from '../WebSocketContext';
 import GameScreen from './GameScreen';
-import { error } from 'console';
 import ErrorScreen from './ErrorScreen';
-import LoadingScreen from './LoadingScreen';
+import GameOverScreen from './GameOverScreen';
+import { useGameContext } from './GameContext';
+import { LeaderboardEntry } from './Leaderboard';
 
 interface MultiplayerGameProps {
   userProfile: UserProfile;
@@ -31,12 +31,13 @@ const MultiplayerGame: React.FC<MultiplayerGameProps> = ({
   timeLimit
 }) => {
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(initialQuestionIndex);
-  const [elapsedTime, setElapsedTime] = useState(0);
   const [isWaiting, setIsWaiting] = useState(false);
   const [isPaused, setIsPaused] = useState(false);
   const [playerScores, setPlayerScores] = useState<PlayerScore[]>([]);
   const { lastMessage, sendMessage } = useWebSocket();
   const gameRef = useRef<any>(null);
+  const { setScore, gameOver, setGameOver, setGameWon, elapsedTime, setElapsedTime } = useGameContext();
+  const [leaderboard, setLeaderboard] = useState<LeaderboardEntry[]>();
 
   const timerRef = useRef<NodeJS.Timeout | null>(null);
 
@@ -58,10 +59,23 @@ const MultiplayerGame: React.FC<MultiplayerGameProps> = ({
             gameRef.current?.resetGrid();
             break;
 
-          case 'gameOver':
+          case 'gameComplete':
             setIsWaiting(false);
             setIsPaused(true);
-            gameRef.current?.pauseGame();
+            if(data.players) {
+              setPlayerScores(data.players);
+              setLeaderboard(data.players.map((player: PlayerScore) => ({
+                userId: player.userId,
+                username: player.username,
+                score: player.score,
+                time: elapsedTime,
+                adventureId: adventure.id,
+                adventureName: adventure.name
+              })));
+            }
+            setGameOver(true);
+            setGameWon(true);
+            
             // Handle game over (could navigate to results page or show modal)
             break;
         }
@@ -95,7 +109,7 @@ const MultiplayerGame: React.FC<MultiplayerGameProps> = ({
         clearInterval(timerRef.current);
       }
 
-      await sendMessage({
+      const response = await sendMessage({
         action: 'submitAnswer',
         sessionId: sessionId,
         userId: userProfile.userId,
@@ -103,6 +117,10 @@ const MultiplayerGame: React.FC<MultiplayerGameProps> = ({
         timeElapsed: elapsedTime,
         questionId: currentQuestionIndex
       });
+
+      if(response && response.score) {
+        setScore(response.score);
+      }
 
       // Show waiting state
       setIsWaiting(true);
@@ -124,7 +142,7 @@ const MultiplayerGame: React.FC<MultiplayerGameProps> = ({
         clearInterval(timerRef.current);
       }
 
-      await sendMessage({
+      const response = await sendMessage({
         action: 'submitAnswer',
         sessionId: sessionId,
         userId: userProfile.userId,
@@ -132,6 +150,10 @@ const MultiplayerGame: React.FC<MultiplayerGameProps> = ({
         timeElapsed: elapsedTime,
         questionId: currentQuestionIndex
       });
+
+      if(response && response.score) {
+        setScore(response.score);
+      }
 
       // Show waiting state
       setIsWaiting(true);
@@ -186,27 +208,17 @@ const MultiplayerGame: React.FC<MultiplayerGameProps> = ({
     };
   }, []);
   
-  if (adventure) {
+  if (gameOver) {
+    return (
+      <GameOverScreen
+        leaderboard={leaderboard}
+      />
+    );
+  }
+  
+  if (adventure && !gameOver) {
     return (
       <div>
-        <Card>
-          <CardContent className="p-4">
-            <h3 className="text-lg font-bold mb-2">Scores:</h3>
-            <div className="space-y-2">
-              {playerScores.map((player) => (
-                <div 
-                  key={player.userId}
-                  className={`flex justify-between items-center p-2 rounded ${
-                    player.userId === userProfile.userId ? 'bg-blue-100' : 'bg-gray-100'
-                  }`}
-                >
-                  <span>{player.username}</span>
-                  <span className="font-bold">{player.score}</span>
-                </div>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
         <Card className="w-full h-full">
           <CardContent className="p-0">
             <GameScreen
@@ -218,7 +230,7 @@ const MultiplayerGame: React.FC<MultiplayerGameProps> = ({
             />
           </CardContent>
         </Card>
-        {isWaiting && (
+        {isWaiting && !gameRef.current?.gameOver && (
           <div className="absolute inset-0 bg-black bg-opacity-50 flex items-center justify-center">
             <div className="bg-white p-6 rounded-lg shadow-xl">
               <h3 className="text-xl font-bold mb-4">

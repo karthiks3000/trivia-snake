@@ -7,21 +7,26 @@ import { Trophy, Clock, Redo, ArrowRightLeft } from 'lucide-react';
 import { formatTime } from '../lib/utils';
 
 interface GameOverScreenProps {
-  resetGame: () => void;
-  leaderboard: LeaderboardEntry[];
+  resetGame?: () => void;
+  leaderboard?: LeaderboardEntry[];
 }
 
-const GameOverScreen: React.FC<GameOverScreenProps> = ({ resetGame, leaderboard }) => {
+const GameOverScreen: React.FC<GameOverScreenProps> = ({ 
+  resetGame, 
+  leaderboard
+}) => {
   const { score, elapsedTime, gameWon } = useGameContext();
 
   return (
     <div className="flex justify-center items-center min-h-[calc(100vh-120px)] p-4">
       <Card className="w-full max-w-2xl">
         <CardHeader className="flex flex-row items-center justify-between">
-          <Button onClick={resetGame} className="bg-indigo-600 hover:bg-indigo-700">
+          {resetGame && (
+            <Button onClick={resetGame} className="bg-indigo-600 hover:bg-indigo-700">
             <Redo className="h-4 w-4 mr-2" />
             Play Again
           </Button>
+          )}
           <CardTitle className="text-3xl font-bold text-center">
             {gameWon ? "Congratulations!" : "Game Over"}
           </CardTitle>
@@ -52,7 +57,7 @@ const GameOverScreen: React.FC<GameOverScreenProps> = ({ resetGame, leaderboard 
           </div>
           <div>
             <h3 className="text-xl font-semibold mb-2 text-center">Leaderboard</h3>
-            <Leaderboard entries={leaderboard} />
+            <Leaderboard entries={leaderboard || []} />
           </div>
         </CardContent>
       </Card>
