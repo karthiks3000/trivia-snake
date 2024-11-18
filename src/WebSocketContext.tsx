@@ -40,8 +40,6 @@ export const WebSocketProvider: React.FC<WebSocketProviderProps> = ({ children, 
 
     ws.onmessage = (event) => {
         const message = JSON.parse(event.data) as WebSocketResponse;
-        // Handle incoming messages here
-        console.log('Received message:', message);
         setLastMessage(message);
     };
 
@@ -69,7 +67,6 @@ export const WebSocketProvider: React.FC<WebSocketProviderProps> = ({ children, 
 
       const handleResponse = (event: MessageEvent) => {
         try {
-          console.log('handleResponse:', event.data);
           const response = JSON.parse(event.data);
           if (response.sessionId) {
             socket.removeEventListener('message', handleResponse);

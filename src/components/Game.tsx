@@ -10,6 +10,7 @@ import { UserProfile } from '../App';
 import { Card, CardContent } from './ui/Card';
 import { Adventure } from './AdventureSelection';
 import { useLocation, useParams } from 'react-router-dom';
+import CountdownBuffer from './CountdownBuffer';
 
 interface GameProps {
   userProfile: UserProfile;
@@ -22,7 +23,7 @@ interface LocationState {
 const GameInner: React.FC<GameProps> = ({  userProfile }) => {
   const { adventureId } = useParams();
   const location = useLocation();
-  
+  const [showCountdown, setShowCountdown] = useState(false);
   const timerRef = useRef<NodeJS.Timeout | null>(null);
   const { 
     setScore, 
@@ -44,13 +45,30 @@ const GameInner: React.FC<GameProps> = ({  userProfile }) => {
   // Get the adventure from location state
   useEffect(() => {
     const state = location.state as LocationState;
+    setIsLoading(true);
+    
     if (state?.adventure) {
       setAdventure(state.adventure);
+      setShowCountdown(true);
+      setIsLoading(false);
     } else {
-      // Fallback to fetching adventure if state is not available
-      fetchQuestions();
+      // Only fetch if we don't have the adventure in state
+      fetchQuestions()
+        .then(() => {
+          setShowCountdown(true);
+        })
+        .finally(() => {
+          setIsLoading(false);
+        });
     }
+    
+    // Fetch leaderboard separately
+    fetchLeaderboard();
   }, [location.state]);
+
+  const handleCountdownComplete = useCallback(() => {
+    setShowCountdown(false);
+  }, []);
 
   const fetchLeaderboard = useCallback(async () => {
     try {
@@ -70,6 +88,7 @@ const GameInner: React.FC<GameProps> = ({  userProfile }) => {
       const data: Adventure = await response.data;
       setAdventure(data);
       setError(null);
+      
     } catch (error) {
       console.error('Error fetching questions:', error);
       setError("Error loading game data. Please check your connection and try again.");
@@ -78,10 +97,10 @@ const GameInner: React.FC<GameProps> = ({  userProfile }) => {
     }
   }, [adventureId]);
 
-  useEffect(() => {
-    fetchQuestions();
-    fetchLeaderboard();
-  }, [fetchQuestions, fetchLeaderboard]);
+  // useEffect(() => {
+  //   fetchQuestions();
+  //   fetchLeaderboard();
+  // }, [fetchQuestions, fetchLeaderboard]);
 
 
   const resetGame = useCallback(() => {
@@ -127,9 +146,14 @@ const GameInner: React.FC<GameProps> = ({  userProfile }) => {
     };
   }, [gameOver, setElapsedTime]);
 
+  if (showCountdown) {
+    return <CountdownBuffer preText='Starting game in' onComplete={handleCountdownComplete} />
+  }
   if (isLoading) return <LoadingScreen />;
   if (error) return <ErrorScreen />;
   if (gameOver) return <GameOverScreen resetGame={resetGame} leaderboard={leaderboard} />;
+  
+  
   if (adventure) {
     return (
       <Card className="w-full h-full">

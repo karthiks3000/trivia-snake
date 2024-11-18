@@ -7,7 +7,9 @@ import GameScreen from './GameScreen';
 import ErrorScreen from './ErrorScreen';
 import GameOverScreen from './GameOverScreen';
 import { useGameContext } from './GameContext';
-import { LeaderboardEntry } from './Leaderboard';
+import { Leaderboard, LeaderboardEntry } from './Leaderboard';
+import Timer from './TimerComponent';
+import CountdownBuffer from './CountdownBuffer';
 
 interface MultiplayerGameProps {
   userProfile: UserProfile;
@@ -15,12 +17,6 @@ interface MultiplayerGameProps {
   sessionId: string;
   initialQuestionIndex: number;
   timeLimit: number;
-}
-
-interface PlayerScore {
-  userId: string;
-  username: string;
-  score: number;
 }
 
 const MultiplayerGame: React.FC<MultiplayerGameProps> = ({
@@ -33,11 +29,12 @@ const MultiplayerGame: React.FC<MultiplayerGameProps> = ({
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(initialQuestionIndex);
   const [isWaiting, setIsWaiting] = useState(false);
   const [isPaused, setIsPaused] = useState(false);
-  const [playerScores, setPlayerScores] = useState<PlayerScore[]>([]);
+  const [timeRemaining, setTimeRemaining] = useState(30);
   const { lastMessage, sendMessage } = useWebSocket();
   const gameRef = useRef<any>(null);
   const { setScore, gameOver, setGameOver, setGameWon, elapsedTime, setElapsedTime } = useGameContext();
   const [leaderboard, setLeaderboard] = useState<LeaderboardEntry[]>();
+  const [showCountdown, setShowCountdown] = useState(false);
 
   const timerRef = useRef<NodeJS.Timeout | null>(null);
 
@@ -53,18 +50,16 @@ const MultiplayerGame: React.FC<MultiplayerGameProps> = ({
             // Reset state for next question
             setCurrentQuestionIndex(data.questionIndex);
             setIsWaiting(false);
-            setIsPaused(false);
+            setShowCountdown(true);
             setElapsedTime(0);
-            // Resume snake movement
-            gameRef.current?.resetGrid();
+            setTimeRemaining(30);
             break;
 
           case 'gameComplete':
             setIsWaiting(false);
             setIsPaused(true);
             if(data.players) {
-              setPlayerScores(data.players);
-              setLeaderboard(data.players.map((player: PlayerScore) => ({
+              setLeaderboard(data.players.map((player: LeaderboardEntry) => ({
                 userId: player.userId,
                 username: player.username,
                 score: player.score,
@@ -90,6 +85,13 @@ const MultiplayerGame: React.FC<MultiplayerGameProps> = ({
     if (!isPaused && !isWaiting) {
       timerRef.current = setInterval(() => {
         setElapsedTime(prev => prev + 1);
+        setTimeRemaining(prev => {
+          if (prev <= 1) {
+            handleWrongAnswer();
+            return 30;
+          }
+          return prev - 1;
+        });
       }, 1000);
     }
 
@@ -120,6 +122,16 @@ const MultiplayerGame: React.FC<MultiplayerGameProps> = ({
 
       if(response && response.score) {
         setScore(response.score);
+      }
+      if (response.players) {
+        setLeaderboard(response.players.map((player: LeaderboardEntry) => ({
+          userId: player.userId,
+          username: player.username,
+          score: player.score,
+          time: elapsedTime,
+          adventureId: adventure.id,
+          adventureName: adventure.name
+        })));
       }
 
       // Show waiting state
@@ -154,6 +166,16 @@ const MultiplayerGame: React.FC<MultiplayerGameProps> = ({
       if(response && response.score) {
         setScore(response.score);
       }
+      if (response.players) {
+        setLeaderboard(response.players.map((player: LeaderboardEntry) => ({
+          userId: player.userId,
+          username: player.username,
+          score: player.score,
+          time: elapsedTime,
+          adventureId: adventure.id,
+          adventureName: adventure.name
+        })));
+      }
 
       // Show waiting state
       setIsWaiting(true);
@@ -177,10 +199,13 @@ const MultiplayerGame: React.FC<MultiplayerGameProps> = ({
               questionId: currentQuestionIndex
           });
           if (response.players) {
-            setPlayerScores(response.players.map((player: any) => ({
+            setLeaderboard(response.players.map((player: LeaderboardEntry) => ({
               userId: player.userId,
               username: player.username,
-              score: player.score || 0
+              score: player.score,
+              time: elapsedTime,
+              adventureId: adventure.id,
+              adventureName: adventure.name
             })));
           }
         }, 2000);
@@ -219,26 +244,38 @@ const MultiplayerGame: React.FC<MultiplayerGameProps> = ({
   if (adventure && !gameOver) {
     return (
       <div>
+        <div className="fixed top-4 right-4 z-50">
+          <Timer timeRemaining={timeRemaining} />
+        </div>
         <Card className="w-full h-full">
           <CardContent className="p-0">
-            <GameScreen
-              ref={gameRef}
-              adventure={adventure}
-              currentQuestionIndex={currentQuestionIndex}
-              handleCorrectAnswer={handleCorrectAnswer}
-              handleWrongAnswer={handleWrongAnswer}
-            />
+            {!showCountdown && (
+              <GameScreen
+                ref={gameRef}
+                adventure={adventure}
+                currentQuestionIndex={currentQuestionIndex}
+                handleCorrectAnswer={handleCorrectAnswer}
+                handleWrongAnswer={handleWrongAnswer}
+              />
+            )}
           </CardContent>
         </Card>
-        {isWaiting && !gameRef.current?.gameOver && (
-          <div className="absolute inset-0 bg-black bg-opacity-50 flex items-center justify-center">
-            <div className="bg-white p-6 rounded-lg shadow-xl">
+        {showCountdown && (
+          <CountdownBuffer preText='Next Question in' onComplete={() => {
+            setShowCountdown(false);
+            setIsPaused(false);
+            gameRef.current?.resetGrid();
+          }} />
+        )}
+        {!showCountdown && isWaiting && !gameRef.current?.gameOver && (
+          <div className="absolute inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+            <div className="bg-white p-6 rounded-lg shadow-xl w-3/4 max-w-4xl">
               <h3 className="text-xl font-bold mb-4">
                 Waiting for other players...
               </h3>
-              <div className="text-center text-gray-600">
-                {playerScores.length} of {playerScores.length} players answered
-              </div>
+              <Leaderboard 
+                entries={leaderboard!}
+              />
             </div>
           </div>
         )}

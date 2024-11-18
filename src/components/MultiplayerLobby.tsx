@@ -139,7 +139,6 @@ const MultiplayerLobby: React.FC<MultiplayerLobbyProps> = ({ userProfile }) => {
   }
 
   const startGame = () => {
-    if (!isHost) return;
     sendMessage({
       action: 'startGame',
       sessionId
@@ -216,7 +215,7 @@ const MultiplayerLobby: React.FC<MultiplayerLobbyProps> = ({ userProfile }) => {
           {(sessionId && isHost)
              ? 
               <Button
-                disabled={!players.every(p => p.ready)}
+                disabled={!isHost || !players.every(p => p.ready)}
                 onClick={startGame}
               >
                 Start Game

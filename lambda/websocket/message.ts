@@ -266,26 +266,56 @@ async function handleSubmitAnswer(body: any, domainName: string, stage: string) 
       (existingResponse?.Item?.score || 0) + 1 : 
       (existingResponse?.Item?.score || 0);
 
-    // Broadcast the update to all players
-    await broadcastToSession(
-      sessionId,
-      {
-        sessionId: sessionId,
-        action: 'playerAnswered',
-        userId: userId,
-        score: newScore
-      },
-      domainName,
-      stage
-    );
+    // Update score in game session
+    const gameSession = await dynamoDB.send(new GetCommand({
+      TableName: GAME_SESSIONS_TABLE,
+      Key: { sessionId }
+    }));
 
-    return {
-      statusCode: 200,
-      body: JSON.stringify({ 
+    if (gameSession.Item) {
+      const updatedPlayers = gameSession.Item.players.map((player: any) => {
+        if (player.userId === userId) {
+          return { ...player, score: newScore };
+        }
+        return player;
+      });
+
+      await dynamoDB.send(new PutCommand({
+        TableName: GAME_SESSIONS_TABLE,
+        Item: {
+          ...gameSession.Item,
+          players: updatedPlayers
+        }
+      }));
+
+      // Broadcast the update to all players
+      await broadcastToSession(
         sessionId,
-        score: newScore
-      })
-    };
+        {
+          sessionId: sessionId,
+          action: 'playerAnswered',
+          userId: userId,
+          score: newScore,
+          players: updatedPlayers
+        },
+        domainName,
+        stage
+      );
+
+      return {
+        statusCode: 200,
+        body: JSON.stringify({ 
+          sessionId,
+          score: newScore,
+          players: updatedPlayers
+        })
+      };
+    } else {
+      return {
+        statusCode: 409,
+        body: JSON.stringify({ error: 'Player game session not found' })
+      };
+    }
 
   } catch (error: any) {
     console.error('Error in handleSubmitAnswer:', error);
