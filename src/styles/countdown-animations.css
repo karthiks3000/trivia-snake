@@ -1,0 +1,41 @@
+/* Snake-themed countdown animations */
+@keyframes snakeSlither {
+  0% {
+    transform: translateX(-100%) scale(0.5);
+    opacity: 0;
+  }
+  50% {
+    transform: translateX(0) scale(1.2);
+    opacity: 1;
+  }
+  100% {
+    transform: translateX(0) scale(1);
+    opacity: 1;
+  }
+}
+
+.countdown-container {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  background: linear-gradient(135deg, #1a472a 0%, #2d5a3f 100%);
+  transition: background 0.5s ease;
+}
+
+.countdown-text {
+  font-family: 'Press Start 2P', cursive;
+  font-size: 4rem;
+  color: #98ff98;
+  text-shadow: 0 0 10px rgba(152, 255, 152, 0.7);
+}
+
+.countdown-number {
+  animation: snakeSlither 1s ease-out;
+}
+
+.pre-text {
+  font-size: 2rem;
+  margin-bottom: 2rem;
+  opacity: 0.9;
+}
