@@ -138,7 +138,9 @@ async function handleJoinSession(connectionId: string, body: any, domainName: st
   await broadcastToSession(
     sessionId,
     {
-      sessionId: sessionId,
+      sessionId,
+      username, 
+      userId,
       action: 'playerJoined',
       players: updatedPlayers
     },
@@ -148,12 +150,12 @@ async function handleJoinSession(connectionId: string, body: any, domainName: st
 
   return {
     statusCode: 200,
-    body: JSON.stringify({ sessionId })
+    body: JSON.stringify({ sessionId, username, userId })
   };
 }
 
 async function handleLeaveSession(connectionId: string, body: any, domainName: string, stage: string) {
-  const { sessionId, userId } = body;
+  const { sessionId, userId, username } = body;
 
   try {
     // Get the current session
@@ -204,7 +206,9 @@ async function handleLeaveSession(connectionId: string, body: any, domainName: s
           action: 'playerLeft',
           sessionId: sessionId,
           userId: userId,
+          username: username,
           players: updatedPlayers,
+          oldHostId: session.Item.hostId,
           newHostId: updatedSession.hostId
         },
         domainName,
@@ -221,7 +225,10 @@ async function handleLeaveSession(connectionId: string, body: any, domainName: s
 
     return {
       statusCode: 200,
-      body: JSON.stringify({ sessionId })
+      body: JSON.stringify({       
+        sessionId,
+        username, 
+        userId, })
     };
 
   } catch (error) {

@@ -14,6 +14,7 @@ import MultiplayerLobby from './components/MultiplayerLobby';
 import { WebSocketProvider } from './WebSocketContext';
 import { motion } from 'framer-motion';
 import { transition } from './styles/theme';
+import { Toaster } from './components/ui/Toaster';
 
 const theme: Theme = {
   name: 'custom-theme',
@@ -132,6 +133,7 @@ function App() {
             </Routes>
           </motion.div>
         </Router>
+        <Toaster />
       </Authenticator.Provider>
     </ThemeProvider>
   );

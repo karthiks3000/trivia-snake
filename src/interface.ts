@@ -11,9 +11,11 @@ export interface Player {
     action: 'playerJoined' | 'playerLeft' | 'playerReady' | 'gameStarted';
     players?: Player[];
     userId?: string;
+    username?: string;
     sessionId?: string;
     questionIndex?: number;
     timeLimit?: number;
+    oldHostId?: string;
     newHostId?: string;
   }
 

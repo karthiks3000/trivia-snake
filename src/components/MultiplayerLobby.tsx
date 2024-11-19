@@ -9,13 +9,15 @@ import { Adventure } from './AdventureSelection';
 import MultiplayerGame from './MultiplayerGame';
 import { useWebSocket } from '../WebSocketContext';
 import { GameProvider } from './GameContext';
+import { useToast } from "../hooks/use-toast"
+
 
 interface MultiplayerLobbyProps {
   userProfile: UserProfile;
 }
 
 const MultiplayerLobby: React.FC<MultiplayerLobbyProps> = ({ userProfile }) => {
-  const { adventureId } = useParams();
+  const {toast} = useToast();
   const location = useLocation();
   const navigate = useNavigate();
   const adventure = location.state?.adventure as Adventure;
@@ -49,24 +51,45 @@ const MultiplayerLobby: React.FC<MultiplayerLobbyProps> = ({ userProfile }) => {
   const handleWebSocketMessage = (data: WebSocketResponse) => {
     switch (data.action) {
       case 'playerJoined':
-        case 'playerLeft':
-          // Update players list
-          setPlayers(data.players!);
-          
-          // If current user is the new host, update host status
-          if (data.newHostId && data.newHostId === userProfile.userId) {
-            setIsHost(true);
-          }
+        // Update players list
+        setPlayers(data.players!);
+        if(data.username) {
+          toast({
+            title: "Player Joined",
+            description: `${data.username} has joined the lobby`,
+          });
+        }
+        break;
+      case 'playerLeft':
+        // Update players list
+        setPlayers(data.players!);
+        
+        // If current user is the new host, update host status
+        if (data.newHostId && data.newHostId === userProfile.userId && data.oldHostId != userProfile.userId) {
+          setIsHost(true);
+          // display toast informing the user
+          toast({
+            title: "You are now the host",
+            description: "You can start the game now",
+          });
+        }
 
-          // If the session was deleted (all players left), redirect to home
-          if (!data.players || data.players.length === 0) {
-            navigate('/');
-            return;
-          }
+        // If the session was deleted (all players left), redirect to home
+        if (!data.players || data.players.length === 0) {
+          navigate('/');
+          return;
+        }
 
-          // Optional: Show a toast notification that a player left
-
-          break;
+        // display toast message
+        if(data.username) {
+          toast({
+            title: "Player Left",
+            description: `${data.username} has left the lobby`,
+            variant: "destructive",
+          });
+        }
+        
+        break;
       case 'playerReady':
         if (data.players) {
           setPlayers(data.players);
@@ -156,6 +179,7 @@ const MultiplayerLobby: React.FC<MultiplayerLobbyProps> = ({ userProfile }) => {
       sendMessage({
         action: 'leaveSession',
         sessionId: sessionId,
+        username: userProfile.username,
         userId: userProfile.userId
       });
     }
