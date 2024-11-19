@@ -5,10 +5,14 @@ import { LogOut, MoveHorizontal, Trophy } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { useNavigate } from 'react-router-dom';
 
+import { motion } from 'framer-motion';
+import { slideIn } from '../styles/theme';
+
 interface HeaderProps {
   userProfile?: UserProfile;
   onSignOut: () => void;
 }
+
 
 const Header: React.FC<HeaderProps> = ({
   userProfile,
@@ -17,7 +21,11 @@ const Header: React.FC<HeaderProps> = ({
   const navigate = useNavigate();
 
   return (
-    <header className="bg-gradient-to-r from-indigo-600 to-purple-600 shadow-lg">
+    <motion.header 
+      className="bg-gradient-to-r from-indigo-600 to-purple-600 shadow-lg border-b-2 border-white/10 backdrop-blur-sm"
+      initial="initial"
+      animate="animate"
+      variants={slideIn}>
       <div className="container mx-auto px-4 py-4">
         <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
           <div className="flex items-center gap-2">
@@ -52,7 +60,7 @@ const Header: React.FC<HeaderProps> = ({
           </div>
         </div>
       </div>
-    </header>
+    </motion.header>
   );
 };
 

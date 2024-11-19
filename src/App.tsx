@@ -12,6 +12,8 @@ import LeaderboardPage from './components/LeaderboardPage';
 import { useNavigate } from 'react-router-dom';
 import MultiplayerLobby from './components/MultiplayerLobby';
 import { WebSocketProvider } from './WebSocketContext';
+import { motion } from 'framer-motion';
+import { transition } from './styles/theme';
 
 const theme: Theme = {
   name: 'custom-theme',
@@ -107,17 +109,28 @@ function AuthenticatedApp() {
 }
 
 function App() {
+  const routeVariants = {
+    initial: { opacity: 0, x: -20 },
+    animate: { opacity: 1, x: 0 },
+    exit: { opacity: 0, x: 20 }
+  };
   return (
     <ThemeProvider theme={theme}>
       <Authenticator.Provider>
         <Router>
-          <div className="min-h-screen bg-gray-100">
+          <motion.div 
+        className="min-h-screen"
+        initial="initial"
+        animate="animate"
+        exit="exit"
+        variants={routeVariants}
+        transition={transition}>
             <Routes>
               <Route path="/" element={<LandingPage />} />
               <Route path="/signin" element={<AuthFlow />} />
               <Route path="/game/*" element={<ProtectedRoute> <AuthenticatedApp /></ProtectedRoute>} />
             </Routes>
-          </div>
+          </motion.div>
         </Router>
       </Authenticator.Provider>
     </ThemeProvider>

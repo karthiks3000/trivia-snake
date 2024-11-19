@@ -1,7 +1,10 @@
 import React from 'react';
 import { useGameContext } from './GameContext';
 import { Leaderboard, LeaderboardEntry } from './Leaderboard';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from './ui/Card';
+import { CardContent, CardHeader, CardTitle, CardDescription } from './ui/Card';
+import GameCard from './ui/GameCard';
+import { motion } from 'framer-motion';
+import { fadeIn, slideIn, transition } from '../styles/theme';
 import { Button } from './ui/Button';
 import { Trophy, Clock, Redo, ArrowRightLeft } from 'lucide-react';
 import { formatTime } from '../lib/utils';
@@ -19,22 +22,26 @@ const GameOverScreen: React.FC<GameOverScreenProps> = ({
 
   return (
     <div className="flex justify-center items-center min-h-[calc(100vh-120px)] p-4">
-      <Card className="w-full max-w-2xl">
-        <CardHeader className="flex flex-row items-center justify-between">
-          {resetGame && (
-            <Button onClick={resetGame} className="bg-indigo-600 hover:bg-indigo-700">
-            <Redo className="h-4 w-4 mr-2" />
-            Play Again
-          </Button>
-          )}
-          <CardTitle className="text-3xl font-bold text-center">
-            {gameWon ? "Congratulations!" : "Game Over"}
-          </CardTitle>
-          <Button onClick={() => window.location.reload()}>
-            <ArrowRightLeft className="h-4 w-4 mr-2" />
-            Adventure
-          </Button>
-        </CardHeader>
+      <GameCard className="w-full max-w-2xl animate-float">
+      <CardHeader className="relative flex flex-col items-center"> {/* Changed to flex-col and added relative */}
+        {resetGame && (
+          <motion.button
+            onClick={resetGame}
+            className="game-button flex items-center justify-center gap-2 absolute left-5" // Added absolute positioning
+            variants={slideIn}
+            initial="initial"
+            animate="animate"
+            whileHover={{ scale: 1.05 }}
+            whileTap={{ scale: 0.95 }}>
+            <Redo className="h-4 w-4" />
+            <span>Play Again</span>
+          </motion.button>
+        )}
+        <CardTitle className="text-3xl font-bold">
+          {gameWon ? "Congratulations!" : "Game Over"}
+        </CardTitle>
+      </CardHeader>
+
         <CardDescription className="text-xl text-center mt-2">
           {gameWon ? "You've completed all questions!" : "Better luck next time!"}
         </CardDescription>
@@ -60,7 +67,7 @@ const GameOverScreen: React.FC<GameOverScreenProps> = ({
             <Leaderboard entries={leaderboard || []} />
           </div>
         </CardContent>
-      </Card>
+      </GameCard>
     </div>
   );
 };

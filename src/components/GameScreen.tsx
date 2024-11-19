@@ -5,6 +5,9 @@ import Grid from './Grid';
 import { Card, CardContent, CardHeader, CardTitle } from "./ui/Card";
 import { Clock, Trophy } from 'lucide-react';
 import { formatTime } from '../lib/utils';
+import { motion } from 'framer-motion';
+import { slideIn, transition } from '../styles/theme';
+import GameCard from './ui/GameCard';
 import { Adventure } from './AdventureSelection';
 
 
@@ -72,7 +75,7 @@ const GameScreen = forwardRef<GameScreenHandle, GameScreenProps>(({
   return (
     <div className="flex flex-col lg:flex-row h-[calc(100vh-120px)] bg-white rounded-lg shadow-lg overflow-hidden">
       <div className="lg:w-1/3 p-4 md:p-6 bg-gray-50">
-        <Card className="mb-4 md:mb-6">
+        <GameCard className="mb-4 md:mb-6 animate-float">
           <CardHeader className="pb-2">
             <CardTitle className="text-lg">Game Stats</CardTitle>
           </CardHeader>
@@ -88,7 +91,7 @@ const GameScreen = forwardRef<GameScreenHandle, GameScreenProps>(({
               </div>
             </div>
           </CardContent>
-        </Card>
+        </GameCard>
         <Question 
           question={currentQuestion}
           options={options}

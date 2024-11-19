@@ -4,7 +4,8 @@ import {
   GetCommand, 
   PutCommand, 
   UpdateCommand,
-  QueryCommand
+  QueryCommand,
+  DeleteCommand
 } from '@aws-sdk/lib-dynamodb';
 import { GameSession, generateSessionId, broadcastToSession } from './utils';
 
@@ -33,6 +34,9 @@ export const handler = async (event: any) => {
         return handleSubmitAnswer(body, domainName, stage);
       case 'checkQuestionState':
         return checkQuestionState(body, domainName, stage);
+      case 'leaveSession':
+        return handleLeaveSession(connectionId, body, domainName, stage);
+        
       default:
         return { statusCode: 400, body: 'Invalid action' };
     }
@@ -98,7 +102,7 @@ async function handleJoinSession(connectionId: string, body: any, domainName: st
   if (!session.Item || session.Item.sessionStatus !== 'WAITING') {
     return {
       statusCode: 400,
-      body: 'Invalid session or game already started'
+      body: JSON.stringify({ error: 'Invalid session or game already started' })
     };
   }
 
@@ -148,6 +152,87 @@ async function handleJoinSession(connectionId: string, body: any, domainName: st
   };
 }
 
+async function handleLeaveSession(connectionId: string, body: any, domainName: string, stage: string) {
+  const { sessionId, userId } = body;
+
+  try {
+    // Get the current session
+    const session = await dynamoDB.send(new GetCommand({
+      TableName: GAME_SESSIONS_TABLE,
+      Key: { sessionId }
+    }));
+
+    if (!session.Item) {
+      return {
+        statusCode: 404,
+        body: JSON.stringify({ error: 'Session not found' })
+      };
+    }
+
+    // Remove the player from the session
+    const updatedPlayers = session.Item.players.filter(
+      (player: any) => player.userId !== userId
+    );
+
+    if (updatedPlayers.length === 0) {
+      // If no players left, delete the session
+      await dynamoDB.send(new DeleteCommand({
+        TableName: GAME_SESSIONS_TABLE,
+        Key: { sessionId }
+      }));
+    } else {
+      // If the leaving player was the host, assign a new host
+      let updatedSession = {
+        ...session.Item,
+        players: updatedPlayers
+      } as GameSession;
+
+      if (session.Item.hostId === userId) {
+        updatedSession.hostId = updatedPlayers[0].userId;
+      }
+
+      // Update the session with the remaining players
+      await dynamoDB.send(new PutCommand({
+        TableName: GAME_SESSIONS_TABLE,
+        Item: updatedSession
+      }));
+
+      // Notify remaining players
+      await broadcastToSession(
+        sessionId,
+        {
+          action: 'playerLeft',
+          sessionId: sessionId,
+          userId: userId,
+          players: updatedPlayers,
+          newHostId: updatedSession.hostId
+        },
+        domainName,
+        stage
+      );
+    }
+
+    // Remove the session association from the connection
+    await dynamoDB.send(new UpdateCommand({
+      TableName: CONNECTION_TABLE,
+      Key: { connectionId },
+      UpdateExpression: 'REMOVE sessionId',
+    }));
+
+    return {
+      statusCode: 200,
+      body: JSON.stringify({ sessionId })
+    };
+
+  } catch (error) {
+    console.error('Error in handleLeaveSession:', error);
+    return {
+      statusCode: 500,
+      body: JSON.stringify({ error: 'Failed to leave session' })
+    };
+  }
+}
+
 async function handleStartGame(connectionId: string, body: any, domainName: string, stage: string) {
   const { sessionId } = body;
 
@@ -162,7 +247,7 @@ async function handleStartGame(connectionId: string, body: any, domainName: stri
       session.Item.hostId !== session.Item.players.find((p: { connectionId: string; }) => p.connectionId === connectionId)?.userId) { // Add host check
     return {
       statusCode: 400,
-      body: JSON.stringify({error: 'Cannot start game'})
+      body: JSON.stringify({ error: 'Cannot start game' })
     };
   }
 

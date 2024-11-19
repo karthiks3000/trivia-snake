@@ -1,7 +1,32 @@
 const { fontFamily } = require("tailwindcss/defaultTheme")
+const { theme } = require("./src/styles/theme")
 
 /** @type {import('tailwindcss').Config} */
 module.exports = {
+  theme: {
+    extend: {
+      ...theme,
+      animation: {
+        'float': 'float 3s ease-in-out infinite',
+        'pulse-slow': 'pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite',
+        'shimmer': 'shimmer 2s infinite',
+      },
+      keyframes: {
+        float: {
+          '0%, 100%': { transform: 'translateY(0px)' },
+          '50%': { transform: 'translateY(-10px)' },
+        },
+        pulse: {
+          '0%, 100%': { opacity: '1', transform: 'scale(1)' },
+          '50%': { opacity: '0.7', transform: 'scale(0.95)' },
+        },
+        shimmer: {
+          '0%': { backgroundPosition: '-1000px 0' },
+          '100%': { backgroundPosition: '1000px 0' },
+        },
+      },
+    },
+  },
   darkMode: ["class"],
   // content: ["app/**/*.{ts,tsx}", "components/**/*.{ts,tsx}"],
   content: [

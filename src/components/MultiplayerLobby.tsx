@@ -49,7 +49,24 @@ const MultiplayerLobby: React.FC<MultiplayerLobbyProps> = ({ userProfile }) => {
   const handleWebSocketMessage = (data: WebSocketResponse) => {
     switch (data.action) {
       case 'playerJoined':
-      case 'playerLeft':
+        case 'playerLeft':
+          // Update players list
+          setPlayers(data.players!);
+          
+          // If current user is the new host, update host status
+          if (data.newHostId && data.newHostId === userProfile.userId) {
+            setIsHost(true);
+          }
+
+          // If the session was deleted (all players left), redirect to home
+          if (!data.players || data.players.length === 0) {
+            navigate('/');
+            return;
+          }
+
+          // Optional: Show a toast notification that a player left
+
+          break;
       case 'playerReady':
         if (data.players) {
           setPlayers(data.players);
@@ -133,6 +150,30 @@ const MultiplayerLobby: React.FC<MultiplayerLobbyProps> = ({ userProfile }) => {
     }
   }; 
 
+  const handleLeaveLobby = useCallback(() => {
+    if (sessionId) {
+      // Notify other players that you're leaving
+      sendMessage({
+        action: 'leaveSession',
+        sessionId: sessionId,
+        userId: userProfile.userId
+      });
+    }
+    
+    // Reset all local state
+    setSessionId(null);
+    setPlayers([]);
+    setIsHost(false);
+    setJoinCode('');
+    setError(null);
+    setGameStarted(false);
+    setGameState(null);
+    
+    // Navigate back to the main menu or previous page
+    navigate('/game/adventure-selection');
+  }, [sessionId, userProfile.userId, sendMessage, navigate]);
+
+
   // Add a loading state
   if (!isConnected) {
     return <div>Connecting to game server...</div>;
@@ -209,7 +250,7 @@ const MultiplayerLobby: React.FC<MultiplayerLobbyProps> = ({ userProfile }) => {
           )}
         </CardContent>
         <CardFooter className="flex justify-between">
-          <Button variant="outline" >
+          <Button variant="outline" onClick={handleLeaveLobby} >
             Leave Lobby
           </Button>
           {(sessionId && isHost)

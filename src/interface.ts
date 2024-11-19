@@ -14,6 +14,7 @@ export interface Player {
     sessionId?: string;
     questionIndex?: number;
     timeLimit?: number;
+    newHostId?: string;
   }
 
   export interface WebSocketMessage {

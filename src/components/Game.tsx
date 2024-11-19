@@ -1,4 +1,7 @@
 import React, { useState, useCallback, useEffect, useMemo, useRef } from 'react';
+import { motion } from 'framer-motion';
+import { fadeIn } from '../styles/theme';
+import GameCard from './ui/GameCard';
 import { GameProvider, useGameContext } from './GameContext';
 import LoadingScreen from './LoadingScreen';
 import ErrorScreen from './ErrorScreen';
@@ -156,16 +159,21 @@ const GameInner: React.FC<GameProps> = ({  userProfile }) => {
   
   if (adventure) {
     return (
-      <Card className="w-full h-full">
-        <CardContent className="p-0">
+      <GameCard className="w-full h-full">
+        <motion.div
+          className="p-0"
+          variants={fadeIn}
+          initial="initial"
+          animate="animate"
+          exit="exit">
           <GameScreen
             adventure={adventure}
             currentQuestionIndex={currentQuestionIndex}
             handleCorrectAnswer={handleCorrectAnswer}
             handleWrongAnswer={handleWrongAnswer}
           />
-        </CardContent>
-      </Card>
+        </motion.div>
+      </GameCard>
     );
   }
 

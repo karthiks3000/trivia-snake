@@ -1,5 +1,8 @@
 import React, { useState } from 'react';
 import axios from 'axios';
+import GameCard from './ui/GameCard';
+import { motion } from 'framer-motion';
+import { slideIn, transition } from '../styles/theme';
 import api from '../api';
 
 interface StartScreenProps {
@@ -49,8 +52,8 @@ const StartScreen: React.FC<StartScreenProps> = ({ onStart, error }) => {
   return (
     <div className="flex justify-center items-center h-[calc(100vh-120px)]">
     <div className="relative py-3 sm:max-w-xl sm:mx-auto">
-      <div className="absolute inset-0 bg-gradient-to-r from-cyan-400 to-light-blue-500 shadow-lg transform -skew-y-6 sm:skew-y-0 sm:-rotate-6 sm:rounded-3xl"></div>
-      <div className="relative px-4 py-10 bg-white shadow-lg sm:rounded-3xl sm:p-20">
+      <GameCard className="relative px-4 py-10 sm:p-20">
+        <div className="animate-shimmer absolute inset-0"></div>
         <div className="text-center">
           <h2 className="text-2xl font-bold mb-4">
             {isRegistering ? 'Register' : 'Login'}
@@ -63,7 +66,7 @@ const StartScreen: React.FC<StartScreenProps> = ({ onStart, error }) => {
                 type="text"
                 value={username}
                 onChange={(e) => setUsername(e.target.value)}
-                className="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
+                className="game-input w-full"
                 required
               />
             </div>
@@ -74,7 +77,7 @@ const StartScreen: React.FC<StartScreenProps> = ({ onStart, error }) => {
                 type="password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                className="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
+                className="game-input w-full"
                 required
               />
             </div>
@@ -85,7 +88,7 @@ const StartScreen: React.FC<StartScreenProps> = ({ onStart, error }) => {
                   id="adventure"
                   value={selectedAdventure}
                   onChange={(e) => setSelectedAdventure(e.target.value)}
-                  className="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
+                  className="game-input w-full"
                   required
                 >
                   <option value="">Choose an adventure</option>
@@ -110,7 +113,7 @@ const StartScreen: React.FC<StartScreenProps> = ({ onStart, error }) => {
                 setStatusMessage('');
                 setPassword('');
               }}
-              className="text-sm text-indigo-600 hover:text-indigo-500"
+              className="text-sm text-indigo-600 hover:text-indigo-500 transition-colors duration-200"
             >
               {isRegistering ? 'Already have an account? Login' : 'Need an account? Register'}
             </button>
@@ -118,9 +121,9 @@ const StartScreen: React.FC<StartScreenProps> = ({ onStart, error }) => {
           {statusMessage && <p className="mt-4 text-sm text-center text-red-600">{statusMessage}</p>}
           {error && <p className="mt-4 text-sm text-center text-red-600">{error}</p>}
         </div>
-        </div>
-        </div>
+        </GameCard>
     </div>
+  </div>
   );
 };
 
