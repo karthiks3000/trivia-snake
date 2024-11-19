@@ -20,9 +20,10 @@ interface LeaderboardProps {
 const Leaderboard: React.FC<LeaderboardProps> = ({ entries, adventureId }) => {
 
 
-  const filteredEntries = adventureId
+  const filteredEntries = (adventureId
     ? (entries ? entries.filter(entry => entry.adventureId === adventureId) : [])
-    : entries ? entries : [];
+    : entries ? entries : [])
+    .sort((a, b) => b.score === a.score ? a.time - b.time : b.score - a.score);
 
   return (
     <div >

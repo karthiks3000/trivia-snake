@@ -1,5 +1,37 @@
 import React, { useState, useEffect, forwardRef, useImperativeHandle, useCallback, useRef } from 'react';
 
+const getSegmentRotation = (index: number, segment: number[], snake: number[][]): string => {
+  if (index === 0) {
+    // For head segment, calculate based on movement direction
+    const nextSegment = snake[1];
+    if (!nextSegment) return '0deg';
+    
+    const dx = segment[0] - nextSegment[0];
+    const dy = segment[1] - nextSegment[1];
+    
+    if (dx > 0) return '0deg';
+    if (dx < 0) return '180deg';
+    if (dy > 0) return '270deg';
+    return '90deg';
+  }
+  
+  // For body segments, calculate based on previous and next segments
+  const prevSegment = snake[index - 1];
+  const nextSegment = snake[index + 1] || segment;
+  
+  const dx = prevSegment[0] - nextSegment[0];
+  const dy = prevSegment[1] - nextSegment[1];
+  
+  const angle = Math.atan2(dy, dx) * (180 / Math.PI);
+  return `${angle}deg`;
+};
+const styles = `
+  @keyframes blink {
+    0%, 90%, 100% { transform: scaleY(1); }
+    95% { transform: scaleY(0.1); }
+  }
+`;
+
 interface SnakeProps {
   onCollision: (head: number[]) => boolean;
   isPaused?: boolean;
@@ -139,25 +171,36 @@ const Snake = forwardRef<any, SnakeProps>(({
 
   return (
     <>
+      <style>{styles}</style>
       {snake.map((segment, index) => (
         <div
           key={index}
           className={`absolute w-[5%] h-[5%] box-border ${
             index === 0
-              ? 'bg-orange-500 rounded-[50%_50%_50%_50%_/_60%_60%_40%_40%]'
-              : 'bg-orange-400 rounded-full'
-          } border border-orange-600`}
+              ? 'bg-orange-500 rounded-[50%_50%_50%_50%_/_60%_60%_40%_40%] shadow-lg'
+              : 'bg-orange-400 rounded-full shadow-md'
+          } border-2 border-orange-700 transition-all duration-150`}
           style={{
             left: `${segment[0]}%`,
             top: `${segment[1]}%`,
             zIndex: snake.length - index,
-            transition: isMoving ? 'all 0.1s linear' : 'none'
+            transition: isMoving ? `all ${0.15 + index * 0.01}s cubic-bezier(0.34, 1.56, 0.64, 1)` : 'none',
+            willChange: 'transform',
+            transformOrigin: 'center center',
+            transform: `
+              rotate(${getSegmentRotation(index, segment, snake)})
+              ${index === 0 ? 'translateZ(0) scale(1.1)' : `scale(${1 - index * 0.01})`}
+              ${index > 0 ? `translate(${Math.sin(Date.now() * 0.003 + index) * 0.5}px, ${Math.cos(Date.now() * 0.002 + index) * 0.5}px)` : ''}
+            `,
+            filter: `brightness(${index === 0 ? '1.1' : 1 - index * 0.01})`
           }}
         >
           {index === 0 && (
             <>
-              <div className="absolute w-[20%] h-[20%] bg-white rounded-full border border-black top-[20%] left-[20%]" />
-              <div className="absolute w-[20%] h-[20%] bg-white rounded-full border border-black top-[20%] right-[20%]" />
+              <div className="absolute w-[20%] h-[20%] bg-white rounded-full border border-black top-[20%] left-[20%] shadow-inner transition-transform duration-300"
+                style={{ animation: 'blink 4s infinite', transformOrigin: 'center' }} />
+              <div className="absolute w-[20%] h-[20%] bg-white rounded-full border border-black top-[20%] right-[20%] shadow-inner transition-transform duration-300"
+                style={{ animation: 'blink 4s infinite', transformOrigin: 'center' }} />
             </>
           )}
         </div>

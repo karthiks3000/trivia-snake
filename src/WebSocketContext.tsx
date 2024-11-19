@@ -96,7 +96,7 @@ export const WebSocketProvider: React.FC<WebSocketProviderProps> = ({ children, 
             console.error('Error parsing last message:', error);
           }
         }
-        reject(new Error('WebSocket message timeout'));
+        // reject(new Error('WebSocket message timeout'));
       }, 5000);
 
       // Clear timeout if message is received
