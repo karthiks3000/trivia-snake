@@ -95,15 +95,6 @@ const AdventureSelection: React.FC<AdventureSelectionProps> = ({ userProfile }) 
     }
   };
 
-  const renderAdventureStatus = (adventure: Adventure) => {
-    if (adventure.verificationStatus === 'pending') {
-      return <span className="text-yellow-500">Pending Verification</span>;
-    } else if (adventure.verificationStatus === 'rejected') {
-      return <span className="text-red-500">Rejected</span>;
-    }
-    return null;
-  };
-
   const handleAdventureCreated = () => {
     setIsCreateModalOpen(false);
     fetchAdventures();
@@ -167,7 +158,9 @@ const AdventureSelection: React.FC<AdventureSelectionProps> = ({ userProfile }) 
               <CardTitle className="flex items-center justify-center gap-2 text-xl mb-2">
                 {adventure.name}
               </CardTitle>
-              {renderAdventureStatus(adventure)}
+              {/* display the adventure description text */}
+              <p className="text-sm text-gray-500 mb-2">{adventure.description}</p>
+              <p className="text-sm text-gray-500 mb-2">{adventure.genre}</p>
             </CardContent>
             <CardFooter className="p-4">
               <Button 

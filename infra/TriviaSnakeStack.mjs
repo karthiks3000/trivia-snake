@@ -123,7 +123,7 @@ export class TriviaSnakeStack extends cdk.Stack {
 
     // Lambda Function
     const leaderboardFunction = new lambda.Function(this, 'LeaderboardFunction', {
-      runtime: lambda.Runtime.PYTHON_3_8,
+      runtime: lambda.Runtime.PYTHON_3_9,
       handler: 'lambda_function.lambda_handler',
       code: lambda.Code.fromAsset(path.join(__dirname, '..', 'lambda')),
       environment: {

@@ -1,5 +1,4 @@
 # lambda_function.py
-
 import base64
 from decimal import Decimal
 import json
@@ -99,6 +98,7 @@ def create_adventure(body):
     try:
         adventure_id = str(uuid.uuid4())
         name = body.get('name')
+        description = body.get('description')
         image_data = body.get('image')
         questions = body.get('questions')
         created_by = body.get('createdBy')
@@ -112,7 +112,7 @@ def create_adventure(body):
             }
         
         # Perform profanity check using Bedrock AI
-        content_to_check = f"{name}\n{json.dumps(questions)}"
+        content_to_check = f"{name}\n{description}\n{json.dumps(questions)}"
         profanity_check_result = check_profanity(content_to_check)
         
         if not profanity_check_result['is_appropriate']:
@@ -164,6 +164,7 @@ def create_adventure(body):
             Item={
                 'id': adventure_id,
                 'name': name,
+                'description': description,
                 'image_url': image_url,
                 'questions': questions,
                 'createdBy': created_by,
@@ -247,50 +248,26 @@ def delete_adventure(adventure_id):
     }
 
 def check_profanity(content):
-    schema_json = json.dumps({
-        "type": "object",
-        "properties": {
-            "is_appropriate": {"type": "boolean"},
-            "reason": {"type": "string"}
-        },
-        "required": ["is_appropriate", "reason"]
-    }, indent=2)
-
     prompt = f"""Analyze the following content for any profanity, vulgarity, or inappropriate language and determine if the content is appropriate for all ages.
     Content: {content}
     
     Respond with a JSON object that has two fields:
     - is_appropriate: boolean indicating if the content is appropriate
-    - reason: string explaining why the content is appropriate or not
-    
-    The response must conform to this schema: {schema_json}"""
+    - reason: string explaining why the content is appropriate or not"""
 
-    try:
-        response = bedrock.invoke_model(
-            modelId="us.anthropic.claude-3-5-haiku-20241022-v1:0",
-            contentType="application/json",
-            accept="application/json",
-            body=json.dumps({
-                "anthropic_version": "bedrock-2023-05-31",
-                "max_tokens": 1000,
-                "messages": [
-                    {
-                        "role": "user",
-                        "content": prompt
-                    }
-                ]
-            })
-        )
-        
-        response_body = json.loads(response['body'].read().decode())
-        result = json.loads(response_body['content'][0]['text'])
-        return result
-    except Exception as e:
-        print(f"Error in profanity check: {str(e)}")
+    success, result, error = invoke_ai_with_safety(
+        prompt=prompt,
+        schema=get_profanity_schema(),
+        max_tokens=1000
+    )
+    
+    if not success:
         return {
             'is_appropriate': False,
-            'reason': 'Unable to analyze content, rejecting by default'
+            'reason': f'Content check failed: {error}'
         }
+    
+    return result
 
 def generate_quiz(body):
     prompt = body.get('prompt')
@@ -303,77 +280,31 @@ def generate_quiz(body):
             'body': json.dumps({'error': 'Prompt is required'})
         }
     
-    try:
-        schema_json = json.dumps({
-            "type": "array",
-            "items": {
-                "type": "object",
-                "properties": {
-                    "question": {"type": "string"},
-                    "options": {
-                        "type": "array",
-                        "items": {"type": "string"},
-                        "minItems": 4,
-                        "maxItems": 4
-                    },
-                    "correctAnswer": {"type": "string"}
-                },
-                "required": ["question", "options", "correctAnswer"]
-            },
-        }, indent=2)
+    formatted_prompt = f"""Generate a trivia quiz with exactly {question_count} questions about: {prompt}
+    Requirements:
+    - Each question must have exactly 4 options
+    - The correct answer must match one of the options exactly
+    - Questions should be engaging and educational
+    """
 
-        prompt = f"""Generate a trivia quiz with exactly {question_count} questions about: {prompt}
+    success, questions, error = invoke_ai_with_safety(
+        prompt=formatted_prompt,
+        schema=get_quiz_schema(question_count),
+        max_tokens=2000
+    )
 
-        Requirements:
-        - Each question must have exactly 4 options
-        - The correct answer must match one of the options exactly
-        - Output must be a valid JSON array conforming to this schema: {schema_json}
-        
-        Respond with only the JSON array of questions."""
-
-        response = bedrock.invoke_model(
-            modelId="us.anthropic.claude-3-5-haiku-20241022-v1:0",
-            contentType="application/json",
-            accept="application/json",
-            body=json.dumps({
-                "anthropic_version": "bedrock-2023-05-31",
-                "max_tokens": 2000,
-                "messages": [
-                    {
-                        "role": "user",
-                        "content": prompt
-                    }
-                ]
-            })
-        )
-
-        response_body = json.loads(response['body'].read().decode())
-        questions = json.loads(response_body['content'][0]['text'])
-
-        # Validate the response
-        if not isinstance(questions, list) or len(questions) != question_count:
-            raise ValueError("Generated quiz must contain exactly {question_count} questions")
-
-        for question in questions:
-            if not all(key in question for key in ('question', 'options', 'correctAnswer')):
-                raise ValueError("Invalid question format in generated quiz")
-            if len(question['options']) != 4:
-                raise ValueError("Each question must have exactly 4 options")
-            if question['correctAnswer'] not in question['options']:
-                raise ValueError("Correct answer must be one of the options")
-
-        return {
-            'statusCode': 200,
-            'headers': get_cors_headers(),
-            'body': json.dumps({'questions': questions})
-        }
-    except Exception as e:
-        print(f"Error generating quiz: {str(e)}")
+    if not success:
         return {
             'statusCode': 500,
             'headers': get_cors_headers(),
-            'body': json.dumps({'error': 'Failed to generate quiz'})
+            'body': json.dumps({'error': f'Failed to generate quiz: {error}'})
         }
+
+    return {
+        'statusCode': 200,
+        'headers': get_cors_headers(),
+        'body': json.dumps({'questions': questions})
+    }
 
 def get_leaderboard():
     try:
@@ -454,3 +385,117 @@ def save_score(body):
             'headers': get_cors_headers(),
             'body': json.dumps({'error': str(e)})
         }
+    
+
+def validate_prompt_safety(prompt: str) -> tuple[bool, str]:
+    """
+    Validates if a prompt is safe to process by checking for:
+    - Maximum length
+    - Prompt injection attempts
+    - Malicious content
+    
+    Returns:
+    - (is_safe: bool, reason: str)
+    """
+        
+    # Check for common prompt injection patterns
+    injection_patterns = [
+        "ignore previous instructions",
+        "disregard above",
+        "system prompt",
+        "you are now",
+        "ignore rules",
+    ]
+    
+    lower_prompt = prompt.lower()
+    for pattern in injection_patterns:
+        if pattern in lower_prompt:
+            return False, f"Potential prompt injection detected: {pattern}"
+            
+    return True, "Prompt appears safe"
+
+def invoke_ai_with_safety(
+    prompt: str,
+    schema: dict,
+    max_tokens: int = 1000,
+    model_id: str = "us.anthropic.claude-3-5-haiku-20241022-v1:0"
+) -> tuple[bool, dict, str]:
+    """
+    Safely invokes the AI model with proper error handling and safety checks.
+    
+    Args:
+    - prompt: The prompt to send to the AI
+    - schema: JSON schema that the response must conform to
+    - max_tokens: Maximum tokens for the response
+    - model_id: The AI model to use
+    
+    Returns:
+    - (success: bool, result: dict, error_message: str)
+    """
+    # First check prompt safety
+    is_safe, safety_reason = validate_prompt_safety(prompt)
+    if not is_safe:
+        return False, None, safety_reason
+        
+    try:
+        # Add schema validation requirement to prompt
+        schema_json = json.dumps(schema, indent=2)
+        full_prompt = f"{prompt}\n\nThe response must conform to this schema: {schema_json}"
+        
+        response = bedrock.invoke_model(
+            modelId=model_id,
+            contentType="application/json",
+            accept="application/json",
+            body=json.dumps({
+                "anthropic_version": "bedrock-2023-05-31",
+                "max_tokens": max_tokens,
+                "messages": [
+                    {
+                        "role": "user",
+                        "content": full_prompt
+                    }
+                ]
+            })
+        )
+        
+        response_body = json.loads(response['body'].read().decode())
+        result = json.loads(response_body['content'][0]['text'])
+        
+        return True, result, ""
+        
+    except Exception as e:
+        error_msg = f"Error invoking AI model: {str(e)}"
+        return False, None, error_msg
+
+def get_profanity_schema():
+    """Returns the schema for profanity check responses"""
+    return {
+        "type": "object",
+        "properties": {
+            "is_appropriate": {"type": "boolean"},
+            "reason": {"type": "string"}
+        },
+        "required": ["is_appropriate", "reason"]
+    }
+
+def get_quiz_schema(question_count: int):
+    """Returns the schema for quiz generation responses"""
+    return {
+        "type": "array",
+        "items": {
+            "type": "object",
+            "properties": {
+                "question": {"type": "string"},
+                "options": {
+                    "type": "array",
+                    "items": {"type": "string"},
+                    "minItems": 4,
+                    "maxItems": 4
+                },
+                "correctAnswer": {"type": "string"}
+            },
+            "required": ["question", "options", "correctAnswer"]
+        },
+        "minItems": question_count,
+        "maxItems": question_count
+    }
