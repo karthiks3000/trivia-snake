@@ -133,6 +133,7 @@ export class TriviaSnakeStack extends cdk.Stack {
         USER_POOL_ID: userPool.userPoolId,
         USER_POOL_CLIENT_ID: userPoolClient.userPoolClientId,
       },
+      timeout: cdk.Duration.seconds(30),
     });
 
     leaderboardTable.grantReadWriteData(leaderboardFunction);

@@ -247,33 +247,54 @@ def delete_adventure(adventure_id):
     }
 
 def check_profanity(content):
-    prompt = f"""
-    Analyze the following content for any profanity, vulgarity, or inappropriate language and determine if the content is appropriate for all ages. Respond with only a JSON object containing:
-    1. 'is_appropriate': A boolean indicating if the content is appropriate (true) or not (false).
-    2. 'reason': If not appropriate, provide a brief explanation of why.
-    {content}
-    """
+    schema_json = json.dumps({
+        "type": "object",
+        "properties": {
+            "is_appropriate": {"type": "boolean"},
+            "reason": {"type": "string"}
+        },
+        "required": ["is_appropriate", "reason"]
+    }, indent=2)
 
-    conversation = [
-        {
-            "role": "user",
-            "content": [{"text": prompt}],
+    prompt = f"""Analyze the following content for any profanity, vulgarity, or inappropriate language and determine if the content is appropriate for all ages.
+    Content: {content}
+    
+    Respond with a JSON object that has two fields:
+    - is_appropriate: boolean indicating if the content is appropriate
+    - reason: string explaining why the content is appropriate or not
+    
+    The response must conform to this schema: {schema_json}"""
+
+    try:
+        response = bedrock.invoke_model(
+            modelId="us.anthropic.claude-3-5-haiku-20241022-v1:0",
+            contentType="application/json",
+            accept="application/json",
+            body=json.dumps({
+                "anthropic_version": "bedrock-2023-05-31",
+                "max_tokens": 1000,
+                "messages": [
+                    {
+                        "role": "user",
+                        "content": prompt
+                    }
+                ]
+            })
+        )
+        
+        response_body = json.loads(response['body'].read().decode())
+        result = json.loads(response_body['content'][0]['text'])
+        return result
+    except Exception as e:
+        print(f"Error in profanity check: {str(e)}")
+        return {
+            'is_appropriate': False,
+            'reason': 'Unable to analyze content, rejecting by default'
         }
-    ]
-    response = bedrock.converse(
-        modelId="us.anthropic.claude-3-5-haiku-20241022-v1:0",
-        messages=conversation,
-        inferenceConfig={"maxTokens":4096,"temperature":1},
-        additionalModelRequestFields={"top_k":250}
-    )
-
-    # Extract and print the response text.
-    response_text = response["output"]["message"]["content"][0]["text"]
-    print(response_text)
-    return json.loads(response_text)
 
 def generate_quiz(body):
     prompt = body.get('prompt')
+    question_count = body.get('questionCount', 10)
     
     if not prompt:
         return {
@@ -283,36 +304,63 @@ def generate_quiz(body):
         }
     
     try:
-        # Prepare the prompt for the Bedrock AI model
-        bedrock_prompt = f"Generate a trivia quiz with 10 questions based on the following topic: {prompt}. For each question, provide 4 options and indicate the correct answer. Format the response as a JSON array of objects, where each object has 'question', 'options' (array of 4 strings), and 'correctAnswer' (string matching one of the options) keys."
+        schema_json = json.dumps({
+            "type": "array",
+            "items": {
+                "type": "object",
+                "properties": {
+                    "question": {"type": "string"},
+                    "options": {
+                        "type": "array",
+                        "items": {"type": "string"},
+                        "minItems": 4,
+                        "maxItems": 4
+                    },
+                    "correctAnswer": {"type": "string"}
+                },
+                "required": ["question", "options", "correctAnswer"]
+            },
+        }, indent=2)
 
-        # Call Bedrock AI service
+        prompt = f"""Generate a trivia quiz with exactly {question_count} questions about: {prompt}
+
+        Requirements:
+        - Each question must have exactly 4 options
+        - The correct answer must match one of the options exactly
+        - Output must be a valid JSON array conforming to this schema: {schema_json}
+        
+        Respond with only the JSON array of questions."""
+
         response = bedrock.invoke_model(
             modelId="us.anthropic.claude-3-5-haiku-20241022-v1:0",
             contentType="application/json",
             accept="application/json",
             body=json.dumps({
-                "prompt": bedrock_prompt,
-                "max_tokens_to_sample": 500,
-                "temperature": 1,
-                "top_p": 1
+                "anthropic_version": "bedrock-2023-05-31",
+                "max_tokens": 2000,
+                "messages": [
+                    {
+                        "role": "user",
+                        "content": prompt
+                    }
+                ]
             })
         )
 
-        # Parse the response
-        response_body = json.loads(response['body'].read())
-        generated_text = response_body['completion']
+        response_body = json.loads(response['body'].read().decode())
+        questions = json.loads(response_body['content'][0]['text'])
 
-        # Extract the JSON part from the generated text
-        json_start = generated_text.find('[')
-        json_end = generated_text.rfind(']') + 1
-        questions_json = generated_text[json_start:json_end]
+        # Validate the response
+        if not isinstance(questions, list) or len(questions) != question_count:
+            raise ValueError("Generated quiz must contain exactly {question_count} questions")
 
-        # Parse the JSON and validate the structure
-        questions = json.loads(questions_json)
         for question in questions:
             if not all(key in question for key in ('question', 'options', 'correctAnswer')):
                 raise ValueError("Invalid question format in generated quiz")
+            if len(question['options']) != 4:
+                raise ValueError("Each question must have exactly 4 options")
+            if question['correctAnswer'] not in question['options']:
+                raise ValueError("Correct answer must be one of the options")
 
         return {
             'statusCode': 200,
@@ -405,27 +453,4 @@ def save_score(body):
             'statusCode': 500,
             'headers': get_cors_headers(),
             'body': json.dumps({'error': str(e)})
-        }
-    response = users_table.get_item(Key={'username': username})
-    if 'Item' not in response:
-        return {
-            'statusCode': 401,
-            'headers': get_cors_headers(),
-            'body': json.dumps({'error': 'Invalid username or password'})
-        }
-    
-    user = response['Item']
-    
-    # Check password
-    if verify_password(user['password'], password):
-        return {
-            'statusCode': 200,
-            'headers': get_cors_headers(),
-            'body': json.dumps({'message': 'Login successful'})
-        }
-    else:
-        return {
-            'statusCode': 401,
-            'headers': get_cors_headers(),
-            'body': json.dumps({'error': 'Invalid username or password'})
         }

@@ -52,6 +52,8 @@ const AdventureCreation: React.FC<AdventureCreationProps> = ({ isOpen, onClose, 
   const [isLoading, setIsLoading] = useState(false);
   const [errors, setErrors] = useState<{ [key: string]: string }>({});
   const [alertInfo, setAlertInfo] = useState<{ type: 'success' | 'error', message: string } | null>(null);
+  const [topic, setTopic] = useState('');
+  const [questionCount, setQuestionCount] = useState(10);
   
 
   const validateForm = () => {
@@ -61,6 +63,8 @@ const AdventureCreation: React.FC<AdventureCreationProps> = ({ isOpen, onClose, 
     if (!coverImage) newErrors.image = 'Cover image is required';
     if (!genre) newErrors.genre = 'Genre is required';
     if (questions.length === 0) newErrors.questions = 'At least one question is required';
+    if (topic && topic.length > 20) newErrors.topic = 'Topic must be 20 characters or less';
+    if (topic && (questionCount < 5 || questionCount > 30)) newErrors.questionCount = 'Question count must be between 5 and 30';
     questions.forEach((q, index) => {
       if (!q.question.trim()) newErrors[`question-${index}`] = 'Question is required';
       if (q.options.some(o => !o.trim())) newErrors[`options-${index}`] = 'All options must be filled';
@@ -93,35 +97,60 @@ const AdventureCreation: React.FC<AdventureCreationProps> = ({ isOpen, onClose, 
       createdBy: userProfile?.userId
     };
 
-    const response = await api.createAdventure(newAdventure);
-    
-    if (response.status === 400) {
-      setAlertInfo({ type: 'error', message: response.data.error || 'Failed to create adventure. Please check your input and try again.' });
-    } else if (response.status === 201) {
-      setAlertInfo({ type: 'success', message: response.data.message || 'Adventure created successfully. It will be available after verification.' });
-      setNewAdventureName('');
-      setNewAdventureDescription('');
-      setCoverImage(null);
-      setQuestions([]);
-      setErrors({});
-      onAdventureCreated();
-    } else {
-      setAlertInfo({ type: 'error', message: 'Failed to create adventure. Please try again.' });
-    }
-    setIsLoading(false);
+    await api.createAdventure(newAdventure)
+    .then((response) => {
+      if (response.status === 201) {
+        setAlertInfo({ type: 'success', message: response.data.message || 'Adventure created successfully. It will be available after verification.' });
+        setNewAdventureName('');
+        setNewAdventureDescription('');
+        setCoverImage(null);
+        setQuestions([]);
+        setErrors({});
+        onAdventureCreated();
+      } else {
+        setAlertInfo({ type: 'error', message: response.data.error || 'Failed to create adventure. Please check your input and try again.' });
+      }
+      setIsLoading(false);
+    })
+    .catch((error) => {
+      setAlertInfo({ type: 'error', message: error.message || 'Failed to create adventure. Please try again.' });
+      setIsLoading(false);
+    });
   };
 
   const handleCloseAlert = () => {
     setAlertInfo(null);
-    if (alertInfo?.type === 'success') {
-      onClose();
-    }
   };
 
   const handleQuestionChange = (index: number, updatedQuestion: Question) => {
     const newQuestions = [...questions];
     newQuestions[index] = updatedQuestion;
     setQuestions(newQuestions);
+  };
+
+  const handleGenerateQuestions = async () => {
+    if (!topic) {
+      setErrors({ ...errors, topic: 'Topic is required for AI generation' });
+      return;
+    }
+    if (questionCount < 5 || questionCount > 30) {
+      setErrors({ ...errors, questionCount: 'Question count must be between 5 and 30' });
+      return;
+    }
+
+    setIsLoading(true);
+    try {
+      const response = await api.generateQuiz({ prompt: topic, questionCount });
+      if (response.status === 200) {
+        setQuestions(response.data.questions);
+        setAlertInfo({ type: 'success', message: 'Questions generated successfully! You can now edit them if needed.' });
+      } else {
+        setAlertInfo({ type: 'error', message: response.data.error || 'Failed to generate questions' });
+      }
+    } catch (error) {
+      setAlertInfo({ type: 'error', message: 'Failed to generate questions. Please try again.' });
+    }
+    setIsLoading(false);
   };
 
   const handleRemoveQuestion = (index: number) => {
@@ -137,9 +166,9 @@ const AdventureCreation: React.FC<AdventureCreationProps> = ({ isOpen, onClose, 
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>Create Custom Adventure</DialogTitle>
+          <DialogTitle>Create Adventure</DialogTitle>
           <DialogDescription>
-            Enter a name, description, upload an image, and add questions for your custom adventure.
+            Enter adventure details below. You can manually create questions or use AI to generate them based on a topic.
           </DialogDescription>
         </DialogHeader>
         <AnimatePresence>
@@ -170,6 +199,50 @@ const AdventureCreation: React.FC<AdventureCreationProps> = ({ isOpen, onClose, 
         </AnimatePresence>
         <div className="grid gap-6 py-4">
           <div className="space-y-4">
+            <div className="flex gap-3">
+                <div>
+                <Label htmlFor="topic">Topic for AI Generation</Label>
+                <Input
+                  id="topic"
+                  value={topic}
+                  onChange={(e) => setTopic(e.target.value.slice(0, 20))}
+                  placeholder="Enter topic for generating questions"
+                  maxLength={20}
+                  className={errors.topic ? 'border-red-500' : ''}
+                />
+                <p className="text-sm text-gray-500 mt-1">{topic.length}/20</p>
+                {errors.topic && <p className="text-red-500 text-sm mt-1">{errors.topic}</p>}
+                </div>
+                <div>
+                <Label htmlFor="questionCount">Number of Questions</Label>
+                <Input
+                  id="questionCount"
+                  type="number"
+                  min={5}
+                  max={30}
+                  value={questionCount}
+                  onChange={(e) => setQuestionCount(parseInt(e.target.value) || 10)}
+                  className={errors.questionCount ? 'border-red-500' : ''}
+                />
+                {errors.questionCount && <p className="text-red-500 text-sm mt-1">{errors.questionCount}</p>}
+                </div>
+                <div className="py-5">
+                  <Button 
+                    onClick={handleGenerateQuestions} 
+                    disabled={isLoading} 
+                    variant="outline"
+                  >
+                    {isLoading ? (
+                      <>
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        Generating
+                      </>
+                    ) : (
+                      'Generate Questions'
+                    )}
+                  </Button>
+                </div>
+            </div>
             <div>
               <Label htmlFor="name">Adventure Name *</Label>
               <Input
