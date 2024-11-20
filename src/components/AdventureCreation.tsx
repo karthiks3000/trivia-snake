@@ -13,6 +13,7 @@ import { Alert, AlertTitle, AlertDescription } from "./ui/Alert";
 import { AnimatePresence, motion } from "framer-motion";
 import ProgressIndicator from './ProgressIndicator';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/Select';
+import { AxiosError } from 'axios';
 
 interface AdventureCreationProps {
   isOpen: boolean;
@@ -163,8 +164,12 @@ const AdventureCreation: React.FC<AdventureCreationProps> = ({ isOpen, onClose, 
       } else {
         setAlertInfo({ type: 'error', message: response.data.error || 'Failed to generate questions' });
       }
-    } catch (error) {
-      setAlertInfo({ type: 'error', message: 'Failed to generate questions. Please try again.' });
+    } catch (errorResponse) {
+      if (errorResponse instanceof AxiosError) {
+        setAlertInfo({ type: 'error', message: errorResponse.response?.data.error });
+      } else {
+        setAlertInfo({ type: 'error', message: 'Failed to generate questions. Please try again.' });
+      }
     }
     setIsLoading(false);
   };

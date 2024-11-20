@@ -132,6 +132,7 @@ export class TriviaSnakeStack extends cdk.Stack {
         ADVENTURE_IMAGES_BUCKET: adventureImagesBucket.bucketName,
         USER_POOL_ID: userPool.userPoolId,
         USER_POOL_CLIENT_ID: userPoolClient.userPoolClientId,
+        ENABLE_AI_FEATURES: 'true'
       },
       timeout: cdk.Duration.seconds(30),
     });

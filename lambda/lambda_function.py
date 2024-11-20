@@ -248,6 +248,16 @@ def delete_adventure(adventure_id):
     }
 
 def check_profanity(content):
+    # Check if AI features are enabled
+    ai_enabled = os.getenv('ENABLE_AI_FEATURES', 'false').lower() == 'true'
+    
+    if not ai_enabled:
+        # When AI is disabled, always return appropriate
+        return {
+            'is_appropriate': True,
+            'reason': 'Content check bypassed - AI features disabled'
+        }
+    
     prompt = f"""Analyze the following content for any profanity, vulgarity, or inappropriate language and determine if the content is appropriate for all ages.
     Content: {content}
     
@@ -270,6 +280,16 @@ def check_profanity(content):
     return result
 
 def generate_quiz(body):
+    # Check if AI features are enabled
+    ai_enabled = os.getenv('ENABLE_AI_FEATURES', 'false').lower() == 'true'
+    
+    if not ai_enabled:
+        return {
+            'statusCode': 401,
+            'headers': get_cors_headers(),
+            'body': json.dumps({'error': 'AI features are currently disabled'})
+        }
+    
     prompt = body.get('prompt')
     question_count = body.get('questionCount', 10)
     
