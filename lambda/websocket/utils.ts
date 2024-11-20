@@ -18,6 +18,7 @@ export interface GameSession {
     username: string;
     connectionId: string;
     score: number;
+    time: number;
     ready: boolean;
   }>;
   questionTimeLimit: number;

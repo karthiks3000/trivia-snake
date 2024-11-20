@@ -63,7 +63,7 @@ const MultiplayerGame: React.FC<MultiplayerGameProps> = ({
                 userId: player.userId,
                 username: player.username,
                 score: player.score,
-                time: elapsedTime,
+                time: player.time,
                 adventureId: adventure.id,
                 adventureName: adventure.name
               })));
@@ -128,7 +128,7 @@ const MultiplayerGame: React.FC<MultiplayerGameProps> = ({
           userId: player.userId,
           username: player.username,
           score: player.score,
-          time: elapsedTime,
+          time: player.time,
           adventureId: adventure.id,
           adventureName: adventure.name
         })));
@@ -171,7 +171,7 @@ const MultiplayerGame: React.FC<MultiplayerGameProps> = ({
           userId: player.userId,
           username: player.username,
           score: player.score,
-          time: elapsedTime,
+          time: player.time,
           adventureId: adventure.id,
           adventureName: adventure.name
         })));
@@ -203,7 +203,7 @@ const MultiplayerGame: React.FC<MultiplayerGameProps> = ({
               userId: player.userId,
               username: player.username,
               score: player.score,
-              time: elapsedTime,
+              time: player.time,
               adventureId: adventure.id,
               adventureName: adventure.name
             })));
@@ -287,89 +287,6 @@ const MultiplayerGame: React.FC<MultiplayerGameProps> = ({
     <ErrorScreen />
   );
 
-  // return (
-  //   <div className="container mx-auto p-4 h-full">
-  //     <div className="grid grid-cols-[1fr_2fr] gap-4 h-full">
-  //       {/* Left side - Question and Options */}
-  //       <div className="space-y-4">
-  //         {/* Question */}
-  //         <Card>
-  //           <CardContent className="p-4">
-  //             <h2 className="text-xl font-bold mb-4">
-  //               Question {currentQuestionIndex + 1} of {adventure.questions.length}
-  //             </h2>
-  //             <p className="text-lg">
-  //               {currentQuestion.question}
-  //             </p>
-  //           </CardContent>
-  //         </Card>
-
-  //         {/* Options */}
-  //         <Card>
-  //           <CardContent className="p-4">
-  //             <h3 className="text-lg font-bold mb-2">Options:</h3>
-  //             <div className="space-y-2">
-  //               {currentQuestion.options.map((option, index) => (
-  //                 <div key={index} className="flex items-center space-x-2">
-  //                   <span className="font-bold">{String.fromCharCode(65 + index)}:</span>
-  //                   <span>{option}</span>
-  //                 </div>
-  //               ))}
-  //             </div>
-  //           </CardContent>
-  //         </Card>
-
-  //         {/* Scores */}
-  //         <Card>
-  //           <CardContent className="p-4">
-  //             <h3 className="text-lg font-bold mb-2">Scores:</h3>
-  //             <div className="space-y-2">
-  //               {playerScores.map((player) => (
-  //                 <div 
-  //                   key={player.userId}
-  //                   className={`flex justify-between items-center p-2 rounded ${
-  //                     player.userId === userProfile.userId ? 'bg-blue-100' : 'bg-gray-100'
-  //                   }`}
-  //                 >
-  //                   <span>{player.username}</span>
-  //                   <span className="font-bold">{player.score}</span>
-  //                 </div>
-  //               ))}
-  //             </div>
-  //           </CardContent>
-  //         </Card>
-  //       </div>
-
-  //       {/* Right side - Game Grid */}
-  //       <div className="relative">
-  //         <div className="aspect-square w-full">
-  //           <Grid
-  //             ref={gridRef}
-  //             options={currentQuestion.options}
-  //             correctLetter={currentQuestion.correctAnswer}
-  //             onCorrectAnswer={handleCorrectAnswer}
-  //             onWrongAnswer={handleWrongAnswer}
-  //             isPaused={isPaused}
-  //           />
-
-  //           {/* Waiting overlay */}
-  //           {isWaiting && (
-  //             <div className="absolute inset-0 bg-black bg-opacity-50 flex items-center justify-center">
-  //               <div className="bg-white p-6 rounded-lg shadow-xl">
-  //                 <h3 className="text-xl font-bold mb-4">
-  //                   Waiting for other players...
-  //                 </h3>
-  //                 <div className="text-center text-gray-600">
-  //                   {playerScores.length} of {playerScores.length} players answered
-  //                 </div>
-  //               </div>
-  //             </div>
-  //           )}
-  //         </div>
-  //       </div>
-  //     </div>
-  //   </div>
-  // );
 };
 
 export default MultiplayerGame;

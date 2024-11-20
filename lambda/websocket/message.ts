@@ -63,6 +63,7 @@ async function handleCreateSession(connectionId: string, body: any) {
       username,
       connectionId,
       score: 0,
+      time: 0,
       ready: true
     }],
     questionTimeLimit: 30,
@@ -113,6 +114,7 @@ async function handleJoinSession(connectionId: string, body: any, domainName: st
       username,
       connectionId,
       score: 0,
+      time: 0,
       ready: true
     }
   ];
@@ -314,11 +316,14 @@ async function handleSubmitAnswer(body: any, domainName: string, stage: string) 
       // Get existing responses and score
       const currentScore = existingResponse.Item.score || 0;
       const currentResponses = existingResponse.Item.responses || {};
+      const currentTotalTime = existingResponse.Item.time || 0;
+
       // Create new complete item
       const updatedItem = {
         sessionId,
         userId,
         score: correct ? currentScore + 1 : currentScore,
+        time: currentTotalTime + timeElapsed,
         responses: {
           ...currentResponses,
           [questionId]: {
@@ -343,6 +348,7 @@ async function handleSubmitAnswer(body: any, domainName: string, stage: string) 
           sessionId,
           userId,
           score: correct ? 1 : 0,
+          time: timeElapsed,
           responses: {
             [questionId]: {
               correct,
@@ -358,6 +364,9 @@ async function handleSubmitAnswer(body: any, domainName: string, stage: string) 
       (existingResponse?.Item?.score || 0) + 1 : 
       (existingResponse?.Item?.score || 0);
 
+    // save new total time in game session
+    const totalTime = (existingResponse?.Item?.time || 0) + timeElapsed;
+
     // Update score in game session
     const gameSession = await dynamoDB.send(new GetCommand({
       TableName: GAME_SESSIONS_TABLE,
@@ -367,7 +376,7 @@ async function handleSubmitAnswer(body: any, domainName: string, stage: string) 
     if (gameSession.Item) {
       const updatedPlayers = gameSession.Item.players.map((player: any) => {
         if (player.userId === userId) {
-          return { ...player, score: newScore };
+          return { ...player, score: newScore, time: totalTime };
         }
         return player;
       });
@@ -388,6 +397,7 @@ async function handleSubmitAnswer(body: any, domainName: string, stage: string) 
           action: 'playerAnswered',
           userId: userId,
           score: newScore,
+          time: totalTime,
           players: updatedPlayers
         },
         domainName,
@@ -399,6 +409,7 @@ async function handleSubmitAnswer(body: any, domainName: string, stage: string) 
         body: JSON.stringify({ 
           sessionId,
           score: newScore,
+          time: totalTime,
           players: updatedPlayers
         })
       };
