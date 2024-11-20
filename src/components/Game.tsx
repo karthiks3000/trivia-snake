@@ -1,4 +1,5 @@
 import React, { useState, useCallback, useEffect, useMemo, useRef } from 'react';
+import AudioManager from '../lib/audio';
 import { motion } from 'framer-motion';
 import { fadeIn } from '../styles/theme';
 import GameCard from './ui/GameCard';
@@ -53,16 +54,7 @@ const GameInner: React.FC<GameProps> = ({  userProfile }) => {
       setAdventure(state.adventure);
       setShowCountdown(true);
       setIsLoading(false);
-    } else {
-      // Only fetch if we don't have the adventure in state
-      fetchQuestions()
-        .then(() => {
-          setShowCountdown(true);
-        })
-        .finally(() => {
-          setIsLoading(false);
-        });
-    }
+    } 
     
     // Fetch leaderboard separately
     fetchLeaderboard();
@@ -115,8 +107,11 @@ const GameInner: React.FC<GameProps> = ({  userProfile }) => {
       if (currentQuestionIndex === adventure!.questions.length - 1) {
         setGameWon(true);
         setGameOver(true);
+        AudioManager.getInstance().stopGameMusic();
+        AudioManager.getInstance().playGameCompletedSound();
         updateLeaderboardFromContext(newScore, adventure!).then(() => fetchLeaderboard());
       } else {
+        AudioManager.getInstance().playCorrectAnswerSound();
         setCurrentQuestionIndex(prevIndex => prevIndex + 1);
       }
       return newScore;
@@ -128,17 +123,26 @@ const GameInner: React.FC<GameProps> = ({  userProfile }) => {
     if (timerRef.current) {
       clearInterval(timerRef.current);
     }
+    AudioManager.getInstance().playWrongAnswerSound();
+    AudioManager.getInstance().stopGameMusic();
     updateLeaderboardFromContext(score, adventure!).then(() => fetchLeaderboard());
   };
 
   useEffect(() => {
     if (!gameOver) {
       timerRef.current = setInterval(() => setElapsedTime(prevTime => prevTime + 1), 1000);
+      AudioManager.getInstance().startGameMusic();
+    } else {
+      if (timerRef.current) {
+        clearInterval(timerRef.current);
+      }
+      AudioManager.getInstance().stopGameMusic();
     }
     return () => {
       if (timerRef.current) {
         clearInterval(timerRef.current);
       }
+      AudioManager.getInstance().stopGameMusic();
     };
   }, [gameOver, setElapsedTime]);
 
@@ -147,7 +151,7 @@ const GameInner: React.FC<GameProps> = ({  userProfile }) => {
   }
   if (isLoading) return <LoadingScreen />;
   if (error) return <ErrorScreen />;
-  if (gameOver) return <GameOverScreen resetGame={resetGame} leaderboard={leaderboard} />;
+  if (gameOver) return <GameOverScreen resetGame={resetGame} adventureId={adventure!.id!} leaderboard={leaderboard} />;
   
   
   if (adventure) {

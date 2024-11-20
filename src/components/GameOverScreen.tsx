@@ -4,19 +4,20 @@ import { Leaderboard, LeaderboardEntry } from './Leaderboard';
 import { CardContent, CardHeader, CardTitle, CardDescription } from './ui/Card';
 import GameCard from './ui/GameCard';
 import { motion } from 'framer-motion';
-import { fadeIn, slideIn, transition } from '../styles/theme';
-import { Button } from './ui/Button';
-import { Trophy, Clock, Redo, ArrowRightLeft } from 'lucide-react';
+import { slideIn } from '../styles/theme';
+import { Trophy, Clock, Redo } from 'lucide-react';
 import { formatTime } from '../lib/utils';
 
 interface GameOverScreenProps {
   resetGame?: () => void;
   leaderboard?: LeaderboardEntry[];
+  adventureId: string;
 }
 
 const GameOverScreen: React.FC<GameOverScreenProps> = ({ 
   resetGame, 
-  leaderboard
+  leaderboard,
+  adventureId
 }) => {
   const { score, elapsedTime, gameWon } = useGameContext();
 
@@ -64,7 +65,7 @@ const GameOverScreen: React.FC<GameOverScreenProps> = ({
           </div>
           <div>
             <h3 className="text-xl font-semibold mb-2 text-center">Leaderboard</h3>
-            <Leaderboard entries={leaderboard || []} />
+            <Leaderboard entries={leaderboard || []} adventureId={adventureId} />
           </div>
         </CardContent>
       </GameCard>

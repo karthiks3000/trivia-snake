@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { UserProfile } from '../App';
 import { Adventure } from './AdventureSelection';
+import AudioManager from '../lib/audio';
 import { Card, CardContent } from './ui/Card';
 import { useWebSocket } from '../WebSocketContext';
 import GameScreen from './GameScreen';
@@ -70,6 +71,8 @@ const MultiplayerGame: React.FC<MultiplayerGameProps> = ({
             }
             setGameOver(true);
             setGameWon(true);
+            AudioManager.getInstance().stopGameMusic();
+            AudioManager.getInstance().playGameCompletedSound();
             
             // Handle game over (could navigate to results page or show modal)
             break;
@@ -83,6 +86,7 @@ const MultiplayerGame: React.FC<MultiplayerGameProps> = ({
   // Timer effect
   useEffect(() => {
     if (!isPaused && !isWaiting) {
+      AudioManager.getInstance().startGameMusic();
       timerRef.current = setInterval(() => {
         setElapsedTime(prev => prev + 1);
         setTimeRemaining(prev => {
@@ -110,6 +114,7 @@ const MultiplayerGame: React.FC<MultiplayerGameProps> = ({
       if (timerRef.current) {
         clearInterval(timerRef.current);
       }
+      AudioManager.getInstance().playCorrectAnswerSound();
 
       const response = await sendMessage({
         action: 'submitAnswer',
@@ -153,6 +158,7 @@ const MultiplayerGame: React.FC<MultiplayerGameProps> = ({
       if (timerRef.current) {
         clearInterval(timerRef.current);
       }
+      AudioManager.getInstance().playWrongAnswerSound();
 
       const response = await sendMessage({
         action: 'submitAnswer',
@@ -230,12 +236,14 @@ const MultiplayerGame: React.FC<MultiplayerGameProps> = ({
       if (timerRef.current) {
         clearInterval(timerRef.current);
       }
+      AudioManager.getInstance().stopGameMusic();
     };
   }, []);
   
   if (gameOver) {
     return (
       <GameOverScreen
+        adventureId={adventure.id!}
         leaderboard={leaderboard}
       />
     );
