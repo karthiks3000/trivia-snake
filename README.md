@@ -10,7 +10,7 @@ This project is a full-stack application that consists of:
 - Infrastructure: AWS CDK for deployment
 - Real-time Communication: WebSocket API
 - Database: DynamoDB
-- Authentication: AWS Amplify
+- Authentication: AWS Cognito
 - AI: AWS Bedrock (Claude 3.5 Haiku)
 
 ## Prerequisites
@@ -50,8 +50,11 @@ Before you begin, ensure you have the following installed:
 3. Create environment files:
    Create `.env.development` for local development:
    ```
-   REACT_APP_API_ENDPOINT=<your-api-endpoint>
-   REACT_APP_WS_ENDPOINT=<your-websocket-endpoint>
+    REACT_APP_API_URL=<your-api-endpoint>
+    REACT_APP_USER_POOL_ID=<your-cognito-user-pool-id>
+    REACT_APP_USER_POOL_CLIENT_ID=<your-cognito-user-pool-client-id>
+    REACT_APP_WEBSOCKET_URL=<your-websocket-endpoint>
+    REACT_APP_AWS_REGION=<your-aws-region>
    ```
 
 4. Start the development server:
@@ -124,7 +127,8 @@ The application uses the following AWS services:
 - Amazon DynamoDB (for data storage)
 - Amazon API Gateway (for REST and WebSocket APIs)
 - AWS CloudFront (for content delivery)
-- AWS Amplify (for authentication)
+- AWS Cognito (for authentication)
+- AWS Bedrock (for AI features)
 
 ## Troubleshooting
 
