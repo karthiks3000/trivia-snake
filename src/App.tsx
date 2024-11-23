@@ -2,14 +2,19 @@ import { useEffect, useState } from 'react';
 import { fetchUserAttributes } from 'aws-amplify/auth';
 import { Authenticator, ThemeProvider, Theme, View, useAuthenticator } from '@aws-amplify/ui-react';
 import { BrowserRouter as Router, Route, Routes, Navigate } from 'react-router-dom';
-
 import '@aws-amplify/ui-react/styles.css';
 import Game from './components/Game';
-import AdventureSelection, { Adventure } from './components/AdventureSelection';
+import AdventureSelection from './components/AdventureSelection';
 import './aws-config';
 import Header from './components/Header';
 import LandingPage from './components/LandingPage';
 import LeaderboardPage from './components/LeaderboardPage';
+import { useNavigate } from 'react-router-dom';
+import MultiplayerLobby from './components/MultiplayerLobby';
+import { WebSocketProvider } from './WebSocketContext';
+import { motion } from 'framer-motion';
+import { transition } from './styles/theme';
+import { Toaster } from './components/ui/Toaster';
 
 const theme: Theme = {
   name: 'custom-theme',
@@ -57,10 +62,9 @@ export interface UserProfile {
 
 function AuthenticatedApp() {
   const { signOut } = useAuthenticator((context) => [context.user]);
-  const [selectedAdventure, setSelectedAdventure] = useState<Adventure>();
   const [userProfile, setUserProfile] = useState<UserProfile>();
-  const [showAdventureSelection, setShowAdventureSelection] = useState(true);
-  const [showLeaderboard, setShowLeaderboard] = useState(false);
+  const navigate = useNavigate();
+
 
   useEffect(() => {
     async function fetchUsername() {
@@ -77,56 +81,59 @@ function AuthenticatedApp() {
     fetchUsername();
   }, []);
 
+  const handleSignOut = () => {
+    signOut();
+    navigate('/');
+  };
+
+  if (!userProfile) {
+    return <div>Loading...</div>;
+  }
+
   return (
-    <div className="flex flex-col min-h-screen bg-gray-100">
-      <Header
-        userProfile={userProfile}
-        showAdventureSelection={showAdventureSelection}
-        selectedAdventure={selectedAdventure}
-        onChangeAdventure={() => {
-          setShowAdventureSelection(true);
-          setShowLeaderboard(false);
-        }}
-        onShowLeaderboard={() => {
-          setShowLeaderboard(true);
-          setShowAdventureSelection(false);
-        }}
-        onSignOut={signOut}
-      />
-      <main className="flex-grow container mx-auto px-4 py-8">
-        {showLeaderboard ? (
-          <LeaderboardPage />
-        ) : showAdventureSelection ? (
-          <div className="bg-white rounded-lg shadow-lg p-6">
-            <AdventureSelection
-              userProfile={userProfile}
-              onAdventureSelect={(adventure) => {
-                setSelectedAdventure(adventure);
-                setShowAdventureSelection(false);
-              }}
-            />
-          </div>
-        ) : (
-          selectedAdventure && <Game adventure={selectedAdventure} userProfile={userProfile!} />
-        )}
-      </main>
-    </div>
+    <WebSocketProvider userProfile={userProfile!}>
+      <div className="flex flex-col min-h-screen bg-gray-100">
+        <Header userProfile={userProfile} onSignOut={handleSignOut} />
+        <main className="flex-grow container mx-auto px-4 py-8">
+          <Routes>
+            <Route path="leaderboard" element={<LeaderboardPage />} />
+            <Route path="adventure-selection" element={<AdventureSelection userProfile={userProfile} />} />
+            <Route path=":adventureId" element={<Game userProfile={userProfile!} />} />
+            <Route path="/" element={<Navigate to="/game/adventure-selection" replace />} />
+            <Route path="multiplayer/:adventureId" element={<MultiplayerLobby userProfile={userProfile!} />} />
+
+          </Routes>
+        </main>
+      </div>
+    </WebSocketProvider>
   );
 }
 
 function App() {
+  const routeVariants = {
+    initial: { opacity: 0, x: -20 },
+    animate: { opacity: 1, x: 0 },
+    exit: { opacity: 0, x: 20 }
+  };
   return (
     <ThemeProvider theme={theme}>
       <Authenticator.Provider>
         <Router>
-          <div className="min-h-screen bg-gray-100">
+          <motion.div 
+        className="min-h-screen"
+        initial="initial"
+        animate="animate"
+        exit="exit"
+        variants={routeVariants}
+        transition={transition}>
             <Routes>
               <Route path="/" element={<LandingPage />} />
               <Route path="/signin" element={<AuthFlow />} />
-              <Route path="/game" element={<ProtectedRoute><AuthenticatedApp /></ProtectedRoute>} />
+              <Route path="/game/*" element={<ProtectedRoute> <AuthenticatedApp /></ProtectedRoute>} />
             </Routes>
-          </div>
+          </motion.div>
         </Router>
+        <Toaster />
       </Authenticator.Provider>
     </ThemeProvider>
   );

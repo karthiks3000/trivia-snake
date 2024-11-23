@@ -9,6 +9,8 @@ import * as origins from 'aws-cdk-lib/aws-cloudfront-origins';
 import * as cognito from 'aws-cdk-lib/aws-cognito';
 import * as iam from 'aws-cdk-lib/aws-iam';
 import * as cloudwatch from 'aws-cdk-lib/aws-cloudwatch';
+import * as apigatewayv2 from 'aws-cdk-lib/aws-apigatewayv2';
+import * as apigatewayv2_integrations from 'aws-cdk-lib/aws-apigatewayv2-integrations';
 import * as path from 'path';
 import { fileURLToPath } from 'url';
 
@@ -106,6 +108,7 @@ export class TriviaSnakeStack extends cdk.Stack {
 
     // DynamoDB Tables
     const leaderboardTable = new dynamodb.Table(this, 'LeaderboardTable', {
+      name: 'LeaderboardTable',
       partitionKey: { name: 'userId', type: dynamodb.AttributeType.STRING },
       sortKey: { name: 'adventureId', type: dynamodb.AttributeType.STRING },
       billingMode: dynamodb.BillingMode.PAY_PER_REQUEST,
@@ -113,13 +116,14 @@ export class TriviaSnakeStack extends cdk.Stack {
 
     // DynamoDB table for storing adventure data
     const adventureTable = new dynamodb.Table(this, 'AdventureTable', {
+      name: 'AdventureTable',
       partitionKey: { name: 'id', type: dynamodb.AttributeType.STRING },
       billingMode: dynamodb.BillingMode.PAY_PER_REQUEST,
     });
 
     // Lambda Function
     const leaderboardFunction = new lambda.Function(this, 'LeaderboardFunction', {
-      runtime: lambda.Runtime.PYTHON_3_8,
+      runtime: lambda.Runtime.PYTHON_3_9,
       handler: 'lambda_function.lambda_handler',
       code: lambda.Code.fromAsset(path.join(__dirname, '..', 'lambda')),
       environment: {
@@ -128,7 +132,9 @@ export class TriviaSnakeStack extends cdk.Stack {
         ADVENTURE_IMAGES_BUCKET: adventureImagesBucket.bucketName,
         USER_POOL_ID: userPool.userPoolId,
         USER_POOL_CLIENT_ID: userPoolClient.userPoolClientId,
+        ENABLE_AI_FEATURES: 'true'
       },
+      timeout: cdk.Duration.seconds(30),
     });
 
     leaderboardTable.grantReadWriteData(leaderboardFunction);
@@ -332,6 +338,33 @@ export class TriviaSnakeStack extends cdk.Stack {
       distributionPaths: ['/*'],
     });
 
+    // all the websocket stuff
+    const gameSessionsTable = new dynamodb.Table(this, 'GameSessionsTable', {
+      name: 'GameSessionsTable',
+      partitionKey: { name: 'sessionId', type: dynamodb.AttributeType.STRING },
+      billingMode: dynamodb.BillingMode.PAY_PER_REQUEST,
+      timeToLiveAttribute: 'ttl', // Auto-delete expired sessions
+      removalPolicy: cdk.RemovalPolicy.DESTROY, // For development
+    });
+
+    const connectionMappingTable = new dynamodb.Table(this, 'ConnectionMappingTable', {
+      name: 'ConnectionMappingTable',
+      partitionKey: { name: 'connectionId', type: dynamodb.AttributeType.STRING },
+      billingMode: dynamodb.BillingMode.PAY_PER_REQUEST,
+      timeToLiveAttribute: 'ttl', // Auto-delete stale connections
+      removalPolicy: cdk.RemovalPolicy.DESTROY, // For development
+    });
+
+    // DynamoDB table for storing player responses
+    const playerResponsesTable = new dynamodb.Table(this, 'PlayerResponsesTable', {
+      name: 'PlayerResponsesTable',
+      partitionKey: { name: 'sessionId', type: dynamodb.AttributeType.STRING },
+      sortKey: { name: 'userId', type: dynamodb.AttributeType.STRING },
+      timeToLiveAttribute: 'ttl', // Auto-delete stale connections
+      removalPolicy: cdk.RemovalPolicy.DESTROY, // For development
+      billingMode: dynamodb.BillingMode.PAY_PER_REQUEST,
+    });
+
     // Output the API URL and CloudFront URL
     new cdk.CfnOutput(this, 'ApiUrl', { value: api.url });
     new cdk.CfnOutput(this, 'CloudFrontUrl', { value: `https://${distribution.domainName}` });
@@ -350,6 +383,85 @@ export class TriviaSnakeStack extends cdk.Stack {
       evaluationPeriods: 24,
       alarmDescription: 'Alarm if Lambda invocations across all functions exceed 1 million per month',
     });
+
+
+    // Lambda Functions
+    const websocketConnectFunction = new lambda.Function(this, 'WebSocketConnectFunction', {
+      runtime: lambda.Runtime.NODEJS_18_X,
+      handler: 'connect.handler',
+      code: lambda.Code.fromAsset(path.join(__dirname, '..', 'lambda/dist/websocket')),
+      environment: {
+        CONNECTION_TABLE_NAME: connectionMappingTable.tableName,
+        GAME_SESSIONS_TABLE_NAME: gameSessionsTable.tableName,
+      },
+      timeout: cdk.Duration.seconds(30),
+    });
+
+    const websocketDisconnectFunction = new lambda.Function(this, 'WebSocketDisconnectFunction', {
+      runtime: lambda.Runtime.NODEJS_18_X,
+      handler: 'disconnect.handler',
+      code: lambda.Code.fromAsset(path.join(__dirname, '..', 'lambda/dist/websocket')),
+      environment: {
+        CONNECTION_TABLE_NAME: connectionMappingTable.tableName,
+        GAME_SESSIONS_TABLE_NAME: gameSessionsTable.tableName,
+      },
+      timeout: cdk.Duration.seconds(30),
+    });
+
+    const websocketMessageFunction = new lambda.Function(this, 'WebSocketMessageFunction', {
+      runtime: lambda.Runtime.NODEJS_18_X,
+      handler: 'message.handler',
+      code: lambda.Code.fromAsset(path.join(__dirname, '..', 'lambda/dist/websocket')),
+      environment: {
+        CONNECTION_TABLE_NAME: connectionMappingTable.tableName,
+        GAME_SESSIONS_TABLE_NAME: gameSessionsTable.tableName,
+        PLAYER_RESPONSES_TABLE_NAME: playerResponsesTable.tableName
+      },
+      timeout: cdk.Duration.seconds(30),
+    });
+
+    // Create WebSocket API
+    const webSocketApi = new apigatewayv2.WebSocketApi(this, 'GameWebSocketApi', {
+      connectRouteOptions: {
+        integration: new apigatewayv2_integrations.WebSocketLambdaIntegration('ConnectIntegration', websocketConnectFunction)
+      },
+      disconnectRouteOptions: {
+        integration: new apigatewayv2_integrations.WebSocketLambdaIntegration('DisconnectIntegration', websocketDisconnectFunction)
+      },
+      defaultRouteOptions: {
+        integration: new apigatewayv2_integrations.WebSocketLambdaIntegration('DefaultIntegration', websocketMessageFunction)
+      }
+    });
+
+    // Create WebSocket Stage
+    const webSocketStage = new apigatewayv2.WebSocketStage(this, 'GameWebSocketStage', {
+      webSocketApi,
+      stageName: 'prod',
+      autoDeploy: true,
+    });
+
+    // Grant DynamoDB permissions
+    connectionMappingTable.grantReadWriteData(websocketConnectFunction);
+    connectionMappingTable.grantReadWriteData(websocketDisconnectFunction);
+    connectionMappingTable.grantReadWriteData(websocketMessageFunction);
+    gameSessionsTable.grantReadWriteData(websocketMessageFunction);
+    playerResponsesTable.grantReadWriteData(websocketMessageFunction);
+
+    // Grant WebSocket management permissions
+    const webSocketManagementPolicy = new iam.PolicyStatement({
+      effect: iam.Effect.ALLOW,
+      actions: ['execute-api:ManageConnections'],
+      resources: [`arn:aws:execute-api:${this.region}:${this.account}:${webSocketApi.apiId}/${webSocketStage.stageName}/POST/*`]
+    });
+
+    websocketMessageFunction.addToRolePolicy(webSocketManagementPolicy);
+    websocketDisconnectFunction.addToRolePolicy(webSocketManagementPolicy);
+
+    // Output the WebSocket URL
+    new cdk.CfnOutput(this, 'WebSocketURL', {
+      value: webSocketApi.apiEndpoint
+    });
+
 
     // DynamoDB Consumed Read Capacity Units Alarm (across all tables)
     new cloudwatch.Alarm(this, 'DynamoDBReadCapacityUnitsAlarm', {

@@ -1,6 +1,7 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useCallback, useRef, forwardRef, useImperativeHandle, useMemo } from 'react';
 import Snake from './Snake';
 import Food from './Food';
+import { Adventure } from './AdventureSelection';
 
 const GridContainer: React.FC<React.PropsWithChildren<{}>> = ({ children }) => (
   <div className="relative w-full h-full bg-green-600 border-4 md:border-8 border-red-700 rounded-lg overflow-hidden">
@@ -14,34 +15,57 @@ const GridContainer: React.FC<React.PropsWithChildren<{}>> = ({ children }) => (
 
 interface GridProps {
   options: string[];
-  correctAnswer: string;
+  correctLetter: string; 
   onCorrectAnswer: () => void;
   onWrongAnswer: () => void;
-  elapsedTime: number;
+  elapsedTime?: number;
+  isPaused?: boolean;
 }
 
-type Direction = 'UP' | 'DOWN' | 'LEFT' | 'RIGHT';
 
-const Grid: React.FC<GridProps> = ({ 
-  options, 
-  correctAnswer, 
+const Grid = forwardRef<any, GridProps>(({ 
+  options,
+  correctLetter,
   onCorrectAnswer, 
   onWrongAnswer, 
-  elapsedTime 
-}) => {
-  // State declarations
-  const [snake, setSnake] = useState<number[][]>([[0, 0]]);
+  isPaused = false
+}, ref) => {
   const [foods, setFoods] = useState<Array<{ position: number[], letter: string }>>([]);
-  const [direction, setDirection] = useState<Direction>('RIGHT');
-  const [lastGrowthTime, setLastGrowthTime] = useState(0);
-  const [lastCorrectAnswerTime, setLastCorrectAnswerTime] = useState(0);
   const hasCollidedRef = useRef(false);
+  const snakeRef = useRef<any>(null);
+  const [shouldShrink, setShouldShrink] = useState(false);
 
-  // Add new state to track collision results
+  
+  // Add state to track collision results
   const [collisionResult, setCollisionResult] = useState<{
     type: 'correct' | 'wrong' | null;
     food?: { position: number[], letter: string };
   }>({ type: null });
+
+  // Expose methods to parent component
+  useImperativeHandle(ref, () => ({
+    pauseGame: () => {
+      if (snakeRef.current) {
+        snakeRef.current.pause();
+      }
+    },
+    resumeGame: () => {
+      if (snakeRef.current) {
+        snakeRef.current.resume();
+      }
+    },
+    getSnakePosition: () => {
+      return snakeRef.current?.getSnake() || [];
+    },
+    resetSnake: () => {
+      if (snakeRef.current) {
+        snakeRef.current.resetPosition(); // This method needs to be implemented in Snake component
+        hasCollidedRef.current = false; // Reset collision state
+        setCollisionResult({ type: null }); // Reset collision result
+      }
+    }
+  }));
+  
   
   // Generate a random position for food
   const getRandomPosition = useCallback(() => {
@@ -51,8 +75,18 @@ const Grid: React.FC<GridProps> = ({
     ];
   }, []);
 
-  // Modify checkCollision to set collision state instead of directly calling handlers
-  const checkCollision = (head: number[]) => {
+  useEffect(() => {
+    const letters = options.map((_, index) => String.fromCharCode(65 + index)); // A, B, C, D...
+    const newFoods = letters.map((letter, index) => ({
+      position: getRandomPosition(),
+      letter: letter // Use letter instead of full option text
+    }));
+    setFoods(newFoods);
+    hasCollidedRef.current = false;
+  }, [options, getRandomPosition]);
+
+  // Check collision with walls, self, and food
+  const checkCollision = useCallback((head: number[]) => {
     if (hasCollidedRef.current) return false;
     
     // Check wall collision
@@ -62,9 +96,10 @@ const Grid: React.FC<GridProps> = ({
       return true;
     }
 
-    // Check self collision
-    for (let i = 1; i < snake.length; i++) {
-      if (head[0] === snake[i][0] && head[1] === snake[i][1]) {
+    // Check self collision using current snake position
+    const currentSnake = snakeRef.current?.getSnake() || [];
+    for (let i = 1; i < currentSnake.length; i++) {
+      if (head[0] === currentSnake[i][0] && head[1] === currentSnake[i][1]) {
         hasCollidedRef.current = true;
         setCollisionResult({ type: 'wrong' });
         return true;
@@ -76,8 +111,11 @@ const Grid: React.FC<GridProps> = ({
       if (Math.abs(head[0] - food.position[0]) < 5 && Math.abs(head[1] - food.position[1]) < 5) {
         hasCollidedRef.current = true;
         
-        if (food.letter === correctAnswer) {
+        if (food.letter === correctLetter) {
+          setShouldShrink(true);
           setCollisionResult({ type: 'correct', food });
+          // Reset shrink flag after a short delay
+          setTimeout(() => setShouldShrink(false), 100);
         } else {
           setCollisionResult({ type: 'wrong', food });
         }
@@ -86,14 +124,12 @@ const Grid: React.FC<GridProps> = ({
     }
 
     return false;
-  };
+  }, [foods, options, correctLetter]);
 
-  // Add useEffect to handle collision results
+  // Handle collision results
   useEffect(() => {
     if (collisionResult.type === 'correct') {
       onCorrectAnswer();
-      // Decrease snake length by 1, but ensure it doesn't go below 1
-      setSnake(prevSnake => prevSnake.length > 1 ? prevSnake.slice(0, -1) : prevSnake);
       setFoods(prevFoods => prevFoods.filter(f => f !== collisionResult.food));
     } else if (collisionResult.type === 'wrong') {
       onWrongAnswer();
@@ -109,79 +145,26 @@ const Grid: React.FC<GridProps> = ({
   }, [collisionResult, onCorrectAnswer, onWrongAnswer]);
 
 
-  // Move the snake
-  const moveSnake = useCallback(() => {
-    hasCollidedRef.current = false; // Reset collision flag at the start of each move
-    setSnake(prevSnake => {
-      const newSnake = [...prevSnake];
-      const head = [...newSnake[0]];
-
-      switch (direction) {
-        case 'RIGHT': head[0] += 5; break;
-        case 'LEFT': head[0] -= 5; break;
-        case 'UP': head[1] -= 5; break;
-        case 'DOWN': head[1] += 5; break;
-      }
-      newSnake.unshift(head);
-
-      if (elapsedTime - lastGrowthTime >= 3) {
-        setLastGrowthTime(elapsedTime);
-      } else {
-        newSnake.pop();
-      }
-
-      if (checkCollision(head)) {
-        return prevSnake; // Return the previous state if collision occurred
-      }
-      return newSnake;
-    });
-  }, [direction, elapsedTime, lastGrowthTime, checkCollision]);
-
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      const keyDirections: { [key: string]: Direction } = {
-        'ArrowUp': 'UP', 'w': 'UP',
-        'ArrowDown': 'DOWN', 's': 'DOWN',
-        'ArrowLeft': 'LEFT', 'a': 'LEFT',
-        'ArrowRight': 'RIGHT', 'd': 'RIGHT'
-      };
-
-      const newDirection = keyDirections[e.key];
-      if (newDirection) {
-        setDirection(prev => {
-          const opposites: { [K in Direction]: Direction } = {
-            'UP': 'DOWN', 'DOWN': 'UP', 'LEFT': 'RIGHT', 'RIGHT': 'LEFT'
-          };
-          return opposites[prev] !== newDirection ? newDirection : prev;
-        });
-      }
-    };
-
-    document.addEventListener('keydown', handleKeyDown);
-    const gameInterval = setInterval(moveSnake, 100);
-
-    return () => {
-      document.removeEventListener('keydown', handleKeyDown);
-      clearInterval(gameInterval);
-    };
-  }, [moveSnake]);
-
-  useEffect(() => {
-    const newFoods = options.map((_, index) => ({
-      position: getRandomPosition(),
-      letter: String.fromCharCode(65 + index)
-    }));
-    setFoods(newFoods);
-  }, [options, getRandomPosition]);
-
   return (
     <GridContainer>
-      <Snake snake={snake} />
+      <Snake
+        ref={snakeRef}
+        onCollision={checkCollision}
+        isPaused={isPaused}
+        shouldShrink={shouldShrink}
+      />
       {foods.map((food, index) => (
-        <Food key={index} position={food.position} letter={food.letter} />
+        
+        <Food
+          key={index}
+          position={food.position}
+          letter={food.letter}
+        />
       ))}
     </GridContainer>
   );
-};
+});
+
+Grid.displayName = 'Grid';
 
 export default Grid;

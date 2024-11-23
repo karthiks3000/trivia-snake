@@ -1,46 +1,177 @@
-# Getting Started with Create React App
+# Trivia Snake
 
-This project was bootstrapped with [Create React App](https://github.com/facebook/create-react-app).
+A web-based trivia game application built with React and AWS serverless infrastructure.
+
+## Project Overview
+
+This project is a full-stack application that consists of:
+- Frontend: React application with TypeScript
+- Backend: AWS Lambda functions
+- Infrastructure: AWS CDK for deployment
+- Real-time Communication: WebSocket API
+- Database: DynamoDB
+- Authentication: AWS Cognito
+- AI: AWS Bedrock (Claude 3.5 Haiku)
+
+## Prerequisites
+
+Before you begin, ensure you have the following installed:
+- Node.js (v16 or later)
+- npm (Node Package Manager)
+- AWS CLI
+- AWS CDK CLI
+- An AWS account with appropriate credentials configured
+
+## Project Structure
+
+```
+├── infra/                  # AWS CDK infrastructure code
+│   ├── TriviaSnakeStack.mjs   # Main stack definition
+│   └── deploy.mjs         # CDK deployment script
+├── lambda/                 # Lambda function source code
+├── src/                    # React application source code
+├── public/                 # Static files
+└── package.json           # Project dependencies and scripts
+```
+
+## Local Development Setup
+
+1. Clone the repository:
+   ```bash
+   git clone <repository-url>
+   cd trivia-snake
+   ```
+
+2. Install dependencies:
+   ```bash
+   npm install
+   ```
+
+3. Create environment files:
+   Create `.env.development` for local development:
+   ```
+    REACT_APP_API_URL=<your-api-endpoint>
+    REACT_APP_USER_POOL_ID=<your-cognito-user-pool-id>
+    REACT_APP_USER_POOL_CLIENT_ID=<your-cognito-user-pool-client-id>
+    REACT_APP_WEBSOCKET_URL=<your-websocket-endpoint>
+    REACT_APP_AWS_REGION=<your-aws-region>
+   ```
+
+4. Start the development server:
+   ```bash
+   npm start
+   ```
+   The application will be available at http://localhost:3000
+
+## AWS Deployment
+
+### First-time Setup
+
+1. Install and configure AWS CLI:
+   ```bash
+   aws configure
+   ```
+   Enter your AWS credentials when prompted.
+
+2. Bootstrap AWS CDK (first-time only):
+   ```bash
+   cd infra
+   cdk bootstrap
+   ```
+
+### Deployment Steps
+
+1. Deploy the infrastructure:
+   ```bash
+   npm run deploy:infra
+   ```
+   This command will:
+   - Deploy all AWS resources (Lambda functions, API Gateway, DynamoDB tables, etc.)
+   - Create necessary IAM roles and permissions
+   - Set up API endpoints
+
+2. Build and deploy the frontend:
+   ```bash
+   # First, update the S3 bucket name in package.json deploy:frontend script
+   # Then run:
+   npm run deploy:frontend
+   ```
+
+3. Alternative: Deploy everything at once:
+   ```bash
+   npm run deploy
+   ```
+
+### Post-deployment
+
+After deployment:
+1. Note the outputted CloudFront distribution URL or API Gateway endpoint
+2. Update your environment variables with the new endpoints
+3. Update the cloudformation stack variable `allowedURLs` to include the cloudfront url
+3. Test the application through the provided URL
 
 ## Available Scripts
 
-In the project directory, you can run:
+- `npm start`: Run the application locally
+- `npm run build`: Build the application for production
+- `npm test`: Run the test suite
+- `npm run deploy:infra`: Deploy AWS infrastructure
+- `npm run deploy:frontend`: Deploy frontend to S3
+- `npm run deploy`: Deploy both infrastructure and frontend
 
-### `npm start`
+## Required AWS Services
 
-Runs the app in the development mode.\
-Open [http://localhost:3000](http://localhost:3000) to view it in the browser.
+The application uses the following AWS services:
+- Amazon S3 (for hosting the frontend)
+- AWS Lambda (for serverless backend functions)
+- Amazon DynamoDB (for data storage)
+- Amazon API Gateway (for REST and WebSocket APIs)
+- AWS CloudFront (for content delivery)
+- AWS Cognito (for authentication)
+- AWS Bedrock (for AI features)
 
-The page will reload if you make edits.\
-You will also see any lint errors in the console.
+## Troubleshooting
 
-### `npm test`
+Common issues and solutions:
 
-Launches the test runner in the interactive watch mode.\
-See the section about [running tests](https://facebook.github.io/create-react-app/docs/running-tests) for more information.
+1. AWS Credentials
+   - Ensure AWS credentials are properly configured in ~/.aws/credentials
+   - Verify you have sufficient permissions in your AWS account
+   - Required permissions include:
+     * CloudFormation full access
+     * IAM role creation
+     * Lambda function deployment
+     * S3 bucket creation and management
+     * API Gateway management
+     * DynamoDB table creation
 
-### `npm run build`
+2. CDK Deployment Issues
+   - Run `cdk diff` to see pending changes
+   - Check CloudFormation console for detailed error messages
+   - Common errors:
+     * Missing environment variables
+     * Insufficient IAM permissions
+     * Name conflicts with existing resources
 
-Builds the app for production to the `build` folder.\
-It correctly bundles React in production mode and optimizes the build for the best performance.
+3. Frontend Deployment
+   - Verify S3 bucket name in package.json
+   - Ensure built files are generated in the build/ directory
+   - Check CORS configuration if API calls fail
+   - Verify environment variables are correctly set
 
-The build is minified and the filenames include the hashes.\
-Your app is ready to be deployed!
+## Security Considerations
 
-See the section about [deployment](https://facebook.github.io/create-react-app/docs/deployment) for more information.
+- Keep your AWS credentials secure and never commit them to the repository
+- Use environment variables for sensitive configuration
+- Review and adjust IAM roles and permissions as needed
+- Enable CloudFront HTTPS-only access
+- Implement proper authentication and authorization
+- Regular security audits and updates
 
-### `npm run eject`
+## Additional Resources
 
-**Note: this is a one-way operation. Once you `eject`, you can’t go back!**
-
-If you aren’t satisfied with the build tool and configuration choices, you can `eject` at any time. This command will remove the single build dependency from your project.
-
-Instead, it will copy all the configuration files and the transitive dependencies (webpack, Babel, ESLint, etc) right into your project so you have full control over them. All of the commands except `eject` will still work, but they will point to the copied scripts so you can tweak them. At this point you’re on your own.
-
-You don’t have to ever use `eject`. The curated feature set is suitable for small and middle deployments, and you shouldn’t feel obligated to use this feature. However we understand that this tool wouldn’t be useful if you couldn’t customize it when you are ready for it.
-
-## Learn More
-
-You can learn more in the [Create React App documentation](https://facebook.github.io/create-react-app/docs/getting-started).
-
-To learn React, check out the [React documentation](https://reactjs.org/).
+- [AWS CDK Documentation](https://docs.aws.amazon.com/cdk/)
+- [React Documentation](https://reactjs.org/)
+- [AWS Lambda Documentation](https://docs.aws.amazon.com/lambda/)
+- [Amazon DynamoDB Documentation](https://docs.aws.amazon.com/dynamodb/)
+- [AWS Amplify Authentication Guide](https://docs.amplify.aws/)

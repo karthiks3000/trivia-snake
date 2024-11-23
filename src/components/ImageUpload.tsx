@@ -11,14 +11,25 @@ const ImageUpload: React.FC<ImageUploadProps> = ({ onImageChange }) => {
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0] || null;
-    onImageChange(file);
+    if (file) {
+      if (file.size > 30 * 1024) { // 30KB in bytes
+        alert('File size must be less than 30KB');
+        e.target.value = '';
+        return;
+      }
+      onImageChange(file);
+    } else {
+      onImageChange(null);
+    }
   };
 
   return (
-    <div className="grid grid-cols-4 items-center gap-4">
+    <div>
+
       <Label htmlFor="coverImage" className="text-right">
         Cover Image
       </Label>
+      <p className="text-sm text-muted-foreground col-span-2">Max file size: 30KB</p>
       <Input
         id="coverImage"
         type="file"

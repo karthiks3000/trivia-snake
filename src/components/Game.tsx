@@ -1,4 +1,8 @@
-import React, { useState, useCallback, useEffect, useMemo } from 'react';
+import React, { useState, useCallback, useEffect, useMemo, useRef } from 'react';
+import AudioManager from '../lib/audio';
+import { motion } from 'framer-motion';
+import { fadeIn } from '../styles/theme';
+import GameCard from './ui/GameCard';
 import { GameProvider, useGameContext } from './GameContext';
 import LoadingScreen from './LoadingScreen';
 import ErrorScreen from './ErrorScreen';
@@ -7,15 +11,23 @@ import GameScreen from './GameScreen';
 import api from '../api';
 import { LeaderboardEntry } from './Leaderboard';
 import { UserProfile } from '../App';
-import { Card, CardContent } from './ui/Card';
 import { Adventure } from './AdventureSelection';
+import { useLocation, useParams } from 'react-router-dom';
+import CountdownBuffer from './CountdownBuffer';
 
 interface GameProps {
-  adventure: Adventure;
   userProfile: UserProfile;
 }
 
-const GameInner: React.FC<GameProps> = ({ adventure: selectedAdventure }) => {
+interface LocationState {
+  adventure: Adventure;
+}
+
+const GameInner: React.FC<GameProps> = ({  userProfile }) => {
+  const { adventureId } = useParams();
+  const location = useLocation();
+  const [showCountdown, setShowCountdown] = useState(false);
+  const timerRef = useRef<NodeJS.Timeout | null>(null);
   const { 
     setScore, 
     setGameOver, 
@@ -24,7 +36,6 @@ const GameInner: React.FC<GameProps> = ({ adventure: selectedAdventure }) => {
     score,
     elapsedTime,
     setElapsedTime,
-    userProfile,
     gameOver,
   } = useGameContext();
 
@@ -33,6 +44,25 @@ const GameInner: React.FC<GameProps> = ({ adventure: selectedAdventure }) => {
   const [adventure, setAdventure] = useState<Adventure | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+
+  // Get the adventure from location state
+  useEffect(() => {
+    const state = location.state as LocationState;
+    setIsLoading(true);
+    
+    if (state?.adventure) {
+      setAdventure(state.adventure);
+      setShowCountdown(true);
+      setIsLoading(false);
+    } 
+    
+    // Fetch leaderboard separately
+    fetchLeaderboard();
+  }, [location.state]);
+
+  const handleCountdownComplete = useCallback(() => {
+    setShowCountdown(false);
+  }, []);
 
   const fetchLeaderboard = useCallback(async () => {
     try {
@@ -47,38 +77,20 @@ const GameInner: React.FC<GameProps> = ({ adventure: selectedAdventure }) => {
   const fetchQuestions = useCallback(async () => {
     setIsLoading(true);
     try {
-      const response = await api.getAdventure(selectedAdventure.id!);
+      const response = await api.getAdventure(adventureId!);
       if (!response.data) throw new Error(`HTTP error! status: ${response.status}`);
       const data: Adventure = await response.data;
       setAdventure(data);
       setError(null);
+      
     } catch (error) {
       console.error('Error fetching questions:', error);
       setError("Error loading game data. Please check your connection and try again.");
     } finally {
       setIsLoading(false);
     }
-  }, [selectedAdventure]);
+  }, [adventureId]);
 
-  useEffect(() => {
-    fetchQuestions();
-    fetchLeaderboard();
-  }, [fetchQuestions, fetchLeaderboard]);
-
-  const currentQuestion = useMemo(() => {
-    if (adventure && currentQuestionIndex < adventure.questions.length) {
-      const question = adventure.questions[currentQuestionIndex];
-      const shuffledOptions = [...question.options].sort(() => Math.random() - 0.5);
-      const correctAnswerIndex = shuffledOptions.findIndex(option => option === question.correctAnswer);
-      return { 
-        question: question.question,
-        options: shuffledOptions, 
-        correctAnswer: question.correctAnswer,
-        correctLetter: String.fromCharCode(65 + correctAnswerIndex)
-      };
-    }
-    return null;
-  }, [adventure, currentQuestionIndex]);
 
   const resetGame = useCallback(() => {
     setCurrentQuestionIndex(0);
@@ -92,12 +104,14 @@ const GameInner: React.FC<GameProps> = ({ adventure: selectedAdventure }) => {
   const handleCorrectAnswer = () => {
     setScore(prevScore => {
       const newScore = prevScore + 1;
-      console.log("incrementing score to " + newScore);
       if (currentQuestionIndex === adventure!.questions.length - 1) {
         setGameWon(true);
         setGameOver(true);
-        updateLeaderboardFromContext(newScore, selectedAdventure).then(() => fetchLeaderboard());
+        AudioManager.getInstance().stopGameMusic();
+        AudioManager.getInstance().playGameCompletedSound();
+        updateLeaderboardFromContext(newScore, adventure!).then(() => fetchLeaderboard());
       } else {
+        AudioManager.getInstance().playCorrectAnswerSound();
         setCurrentQuestionIndex(prevIndex => prevIndex + 1);
       }
       return newScore;
@@ -106,41 +120,67 @@ const GameInner: React.FC<GameProps> = ({ adventure: selectedAdventure }) => {
 
   const handleWrongAnswer = () => {
     setGameOver(true);
-    updateLeaderboardFromContext(score, selectedAdventure).then(() => fetchLeaderboard());
+    if (timerRef.current) {
+      clearInterval(timerRef.current);
+    }
+    AudioManager.getInstance().playWrongAnswerSound();
+    AudioManager.getInstance().stopGameMusic();
+    updateLeaderboardFromContext(score, adventure!).then(() => fetchLeaderboard());
   };
 
   useEffect(() => {
-    let timer: NodeJS.Timeout;
     if (!gameOver) {
-      timer = setInterval(() => setElapsedTime(prevTime => prevTime + 1), 1000);
+      timerRef.current = setInterval(() => setElapsedTime(prevTime => prevTime + 1), 1000);
+      AudioManager.getInstance().startGameMusic();
+    } else {
+      if (timerRef.current) {
+        clearInterval(timerRef.current);
+      }
+      AudioManager.getInstance().stopGameMusic();
     }
-    return () => { if (timer) clearInterval(timer); };
+    return () => {
+      if (timerRef.current) {
+        clearInterval(timerRef.current);
+      }
+      AudioManager.getInstance().stopGameMusic();
+    };
   }, [gameOver, setElapsedTime]);
 
+  if (showCountdown) {
+    return <CountdownBuffer preText='Starting game in' onComplete={handleCountdownComplete} />
+  }
   if (isLoading) return <LoadingScreen />;
   if (error) return <ErrorScreen />;
-  if (gameOver) return <GameOverScreen resetGame={resetGame} leaderboard={leaderboard} />;
-  if (currentQuestion) {
+  if (gameOver) return <GameOverScreen resetGame={resetGame} adventureId={adventure!.id!} leaderboard={leaderboard} />;
+  
+  
+  if (adventure) {
     return (
-      <Card className="w-full h-full">
-        <CardContent className="p-0">
+      <GameCard className="w-full h-full">
+        <motion.div
+          className="p-0"
+          variants={fadeIn}
+          initial="initial"
+          animate="animate"
+          exit="exit">
           <GameScreen
-            currentQuestion={currentQuestion}
+            adventure={adventure}
+            currentQuestionIndex={currentQuestionIndex}
             handleCorrectAnswer={handleCorrectAnswer}
             handleWrongAnswer={handleWrongAnswer}
           />
-        </CardContent>
-      </Card>
+        </motion.div>
+      </GameCard>
     );
   }
 
   return null;
 };
 
-const Game: React.FC<GameProps> = ({ adventure, userProfile }) => {
+const Game: React.FC<GameProps> = ({ userProfile }) => {
   return (
     <GameProvider userProfile={userProfile}>
-      <GameInner adventure={adventure} userProfile={userProfile} />
+      <GameInner userProfile={userProfile} />
     </GameProvider>
   );
 };

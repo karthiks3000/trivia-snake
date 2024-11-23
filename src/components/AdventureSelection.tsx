@@ -9,6 +9,8 @@ import AdventureCreation, { GENRES } from './AdventureCreation';
 import { Question } from './QuestionForm';
 import { Input } from "./ui/Input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "./ui/Select";
+import { useNavigate } from 'react-router-dom';
+import GameModeModal from './GameModeModal';
 
 export interface Adventure {
   id?: string;
@@ -23,10 +25,11 @@ export interface Adventure {
 
 interface AdventureSelectionProps {
   userProfile: UserProfile | undefined;
-  onAdventureSelect: (adventure: Adventure) => void;
 }
 
-const AdventureSelection: React.FC<AdventureSelectionProps> = ({ userProfile, onAdventureSelect }) => {
+const AdventureSelection: React.FC<AdventureSelectionProps> = ({ userProfile }) => {
+  const navigate = useNavigate();
+  const [sortBy, setSortBy] = useState('name');
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [adventures, setAdventures] = useState<Adventure[]>([]);
   const [filteredAdventures, setFilteredAdventures] = useState<Adventure[]>([]);
@@ -34,18 +37,50 @@ const AdventureSelection: React.FC<AdventureSelectionProps> = ({ userProfile, on
   const [error, setError] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedGenre, setSelectedGenre] = useState('All');
-
+  const [isGameModeModalOpen, setIsGameModeModalOpen] = useState(false);
+  const [selectedAdventure, setSelectedAdventure] = useState<Adventure | null>(null);
+  
   useEffect(() => {
     fetchAdventures();
   }, []);
+
+  const handleAdventureSelect = (adventure: Adventure) => {
+    setSelectedAdventure(adventure);
+    setIsGameModeModalOpen(true);
+  };
+
+  const handleGameModeSelect = (mode: 'single' | 'multiplayer') => {
+    if (!selectedAdventure) return;
+
+    if (mode === 'single') {
+      // Navigate to single player game
+      navigate(`/game/${selectedAdventure.id}`, {
+        state: { adventure: selectedAdventure }
+      });
+    } else {
+      // Navigate to multiplayer lobby
+      navigate(`/game/multiplayer/${selectedAdventure.id}`, {
+        state: { adventure: selectedAdventure }
+      });
+    }
+    setIsGameModeModalOpen(false);
+  };
 
   useEffect(() => {
     const filtered = adventures.filter(adventure => 
       adventure.name.toLowerCase().includes(searchTerm.toLowerCase()) &&
       (selectedGenre == 'All' || adventure.genre === selectedGenre)
     );
-    setFilteredAdventures(filtered);
-  }, [adventures, searchTerm, selectedGenre]);
+    const sorted = [...filtered].sort((a, b) => {
+      if (sortBy === 'name') {
+        return a.name.localeCompare(b.name);
+      } else if (sortBy === 'genre') {
+        return a.genre.localeCompare(b.genre);
+      }
+      return 0;
+    });
+    setFilteredAdventures(sorted);
+  }, [adventures, searchTerm, selectedGenre, sortBy]);
 
   const fetchAdventures = async () => {
     try {
@@ -58,15 +93,6 @@ const AdventureSelection: React.FC<AdventureSelectionProps> = ({ userProfile, on
     } finally {
       setIsLoading(false);
     }
-  };
-
-  const renderAdventureStatus = (adventure: Adventure) => {
-    if (adventure.verificationStatus === 'pending') {
-      return <span className="text-yellow-500">Pending Verification</span>;
-    } else if (adventure.verificationStatus === 'rejected') {
-      return <span className="text-red-500">Rejected</span>;
-    }
-    return null;
   };
 
   const handleAdventureCreated = () => {
@@ -112,6 +138,15 @@ const AdventureSelection: React.FC<AdventureSelectionProps> = ({ userProfile, on
             ))}
           </SelectContent>
         </Select>
+        <Select onValueChange={setSortBy} value={sortBy}>
+          <SelectTrigger className="w-[180px]">
+            <SelectValue placeholder="Sort by" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="name">Name</SelectItem>
+            <SelectItem value="genre">Genre</SelectItem>
+          </SelectContent>
+        </Select>
       </div>
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         {filteredAdventures.map((adventure) => (
@@ -123,12 +158,14 @@ const AdventureSelection: React.FC<AdventureSelectionProps> = ({ userProfile, on
               <CardTitle className="flex items-center justify-center gap-2 text-xl mb-2">
                 {adventure.name}
               </CardTitle>
-              {renderAdventureStatus(adventure)}
+              {/* display the adventure description text */}
+              <p className="text-sm text-gray-500 mb-2">{adventure.description}</p>
+              <p className="text-sm text-gray-500 mb-2">{adventure.genre}</p>
             </CardContent>
             <CardFooter className="p-4">
               <Button 
                 className="w-full" 
-                onClick={() => onAdventureSelect(adventure)}
+                onClick={() => handleAdventureSelect(adventure)}
                 disabled={adventure.verificationStatus !== 'verified'}
               >
                 {adventure.verificationStatus === 'verified' ? 'Start Adventure' : 'Not Available'}
@@ -162,6 +199,13 @@ const AdventureSelection: React.FC<AdventureSelectionProps> = ({ userProfile, on
         onClose={() => setIsCreateModalOpen(false)}
         onAdventureCreated={handleAdventureCreated}
         userProfile={userProfile}
+      />
+
+      <GameModeModal
+        isOpen={isGameModeModalOpen}
+        onClose={() => setIsGameModeModalOpen(false)}
+        onSelectMode={handleGameModeSelect}
+        adventureName={selectedAdventure?.name || ''}
       />
     </div>
   );

@@ -1,8 +1,7 @@
 // Leaderboard.tsx
 import React from 'react';
-import { useGameContext } from './GameContext';
-import { Button } from './ui/Button';
 import { formatTime } from '../lib/utils';
+
 
 interface LeaderboardEntry {
   userId: string;
@@ -14,18 +13,20 @@ interface LeaderboardEntry {
 }
 
 interface LeaderboardProps {
-  entries: LeaderboardEntry[];
+  entries?: LeaderboardEntry[];
   adventureId?: string;
 }
 
 const Leaderboard: React.FC<LeaderboardProps> = ({ entries, adventureId }) => {
 
-  const filteredEntries = adventureId
-    ? entries.filter(entry => entry.adventureId === adventureId)
-    : entries;
+
+  const filteredEntries = (adventureId
+    ? (entries ? entries.filter(entry => entry.adventureId === adventureId) : [])
+    : entries ? entries : [])
+    .sort((a, b) => b.score === a.score ? a.time - b.time : b.score - a.score);
 
   return (
-    <div className="mb-4">
+    <div >
       <table className="w-full mb-4">
         <thead>
           <tr className="bg-gray-200">
