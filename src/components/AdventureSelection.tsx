@@ -69,7 +69,7 @@ const AdventureSelection: React.FC<AdventureSelectionProps> = ({ userProfile }) 
   useEffect(() => {
     const filtered = adventures.filter(adventure => 
       adventure.name.toLowerCase().includes(searchTerm.toLowerCase()) &&
-      (selectedGenre == 'All' || adventure.genre === selectedGenre)
+      (selectedGenre === 'All' || adventure.genre === selectedGenre)
     );
     const sorted = [...filtered].sort((a, b) => {
       if (sortBy === 'name') {

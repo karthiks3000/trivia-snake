@@ -1,5 +1,5 @@
 // GameContext.tsx
-import React, { createContext, useContext, useState, useCallback, ReactNode, useEffect } from 'react';
+import React, { createContext, useContext, useState, useCallback, ReactNode } from 'react';
 import api from '../api';
 import { UserProfile } from '../App';
 import { Adventure } from './AdventureSelection';
