@@ -1,8 +1,7 @@
 // src/contexts/WebSocketContext.tsx
-import { getCurrentUser } from 'aws-amplify/auth';
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { UserProfile } from './App';
-import { Player, WebSocketMessage, WebSocketResponse } from './interface';
+import { WebSocketMessage, WebSocketResponse } from './interface';
 
 interface WebSocketContextType {
   socket: WebSocket | null;

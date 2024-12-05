@@ -1,12 +1,10 @@
-import React, { forwardRef, useEffect, useImperativeHandle, useRef, useState } from 'react';
+import { forwardRef, useEffect, useImperativeHandle, useRef, useState } from 'react';
 import { useGameContext } from './GameContext';
 import Question from './Question';
 import Grid from './Grid';
-import { Card, CardContent, CardHeader, CardTitle } from "./ui/Card";
+import { CardContent, CardHeader, CardTitle } from "./ui/Card";
 import { Clock, Trophy } from 'lucide-react';
 import { formatTime } from '../lib/utils';
-import { motion } from 'framer-motion';
-import { slideIn, transition } from '../styles/theme';
 import GameCard from './ui/GameCard';
 import { Adventure } from './AdventureSelection';
 

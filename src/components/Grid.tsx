@@ -1,7 +1,6 @@
-import React, { useState, useEffect, useCallback, useRef, forwardRef, useImperativeHandle, useMemo } from 'react';
+import React, { useState, useEffect, useCallback, useRef, forwardRef, useImperativeHandle } from 'react';
 import Snake from './Snake';
 import Food from './Food';
-import { Adventure } from './AdventureSelection';
 
 const GridContainer: React.FC<React.PropsWithChildren<{}>> = ({ children }) => (
   <div className="relative w-full h-full bg-green-600 border-4 md:border-8 border-red-700 rounded-lg overflow-hidden">
