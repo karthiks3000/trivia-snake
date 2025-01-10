@@ -41,7 +41,7 @@ export const GameProvider: React.FC<GameProviderProps> = ({ children, userProfil
     
     try {
       const newEntry = {
-        userId: userProfile.userId,
+        userId: userProfile.id,
         username: userProfile.username,
         score: finalScore,
         time: elapsedTime,

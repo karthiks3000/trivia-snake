@@ -77,7 +77,7 @@ export const api = {
   getAdventure: (id: string): Promise<AxiosResponse<any>> =>
     apiClient.get(`/adventures/${id}`),
 
-  createAdventure: (data: { name: string; description: string; image: string; questions: any[] }): Promise<AxiosResponse<any>> => {
+  createAdventure: (data: { name: string; description: string; image: string; questions: any[]; createdBy: string; genre: string }): Promise<AxiosResponse<any>> => {
     return apiClient.post('/adventures', data, {
       headers: {
         'Content-Type': 'application/json'

@@ -13,7 +13,6 @@ interface HeaderProps {
   onSignOut: () => void;
 }
 
-
 const Header: React.FC<HeaderProps> = ({
   userProfile,
   onSignOut
@@ -28,35 +27,50 @@ const Header: React.FC<HeaderProps> = ({
       variants={slideIn}>
       <div className="container mx-auto px-4 py-4">
         <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
-          <div className="flex items-center gap-2">
-            <Link to="/" className="text-2xl font-bold text-white hover:text-gray-200 transition-colors">
+          <motion.div 
+            className="flex items-center gap-2"
+            whileHover={{ scale: 1.05 }}
+            whileTap={{ scale: 0.95 }}
+          >
+            <Link to="/" className="text-3xl font-bold text-white hover:text-gray-200 transition-colors">
               Trivia Snake
             </Link>
-          </div>
+          </motion.div>
 
           <div className="flex items-center gap-3">
-            <Button onClick={() => navigate('/game/adventure-selection')}>
-              <MoveHorizontal className="w-4 h-4 mr-2"/>
-              Adventures
-            </Button>
-            <Button onClick={() => navigate('/game/leaderboard')}>
-              <Trophy className="w-4 h-4 mr-2"/>
-              Leaderboard
-            </Button>
+            <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
+              <Button onClick={() => navigate('/game/adventure-selection')} className="bg-indigo-500 hover:bg-indigo-600">
+                <MoveHorizontal className="w-4 h-4 mr-2"/>
+                Adventures
+              </Button>
+            </motion.div>
+            <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
+              <Button onClick={() => navigate('/game/leaderboard')} className="bg-purple-500 hover:bg-purple-600">
+                <Trophy className="w-4 h-4 mr-2"/>
+                Leaderboard
+              </Button>
+            </motion.div>
 
-            <span className="text-white/90">
-              Welcome, <span className="font-medium">{userProfile?.username}</span>
-            </span>
-            
-            <Button 
-              variant="ghost" 
-              size="sm"
-              onClick={onSignOut}
-              className="text-white hover:bg-white/10"
+            <motion.span 
+              className="text-white/90 bg-white/10 px-3 py-1 rounded-full"
+              initial={{ opacity: 0, y: -10 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.2 }}
             >
-              <LogOut className="w-4 h-4 mr-2" />
-              Sign out
-            </Button>
+              Welcome, <span className="font-medium">{userProfile?.username}</span>
+            </motion.span>
+            
+            <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
+              <Button 
+                variant="ghost" 
+                size="sm"
+                onClick={onSignOut}
+                className="text-white hover:bg-white/20"
+              >
+                <LogOut className="w-4 h-4 mr-2" />
+                Sign out
+              </Button>
+            </motion.div>
           </div>
         </div>
       </div>

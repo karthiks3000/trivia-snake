@@ -81,7 +81,7 @@ const MultiplayerGame: React.FC<MultiplayerGameProps> = ({
         console.error('Error parsing message:', error);
       }
     }
-  }, [lastMessage, userProfile.userId]);
+  }, [lastMessage, userProfile.id]);
 
   // Timer effect
   useEffect(() => {
@@ -119,7 +119,7 @@ const MultiplayerGame: React.FC<MultiplayerGameProps> = ({
       const response = await sendMessage({
         action: 'submitAnswer',
         sessionId: sessionId,
-        userId: userProfile.userId,
+        userId: userProfile.id,
         correct: true,
         timeElapsed: elapsedTime,
         questionId: currentQuestionIndex
@@ -163,7 +163,7 @@ const MultiplayerGame: React.FC<MultiplayerGameProps> = ({
       const response = await sendMessage({
         action: 'submitAnswer',
         sessionId: sessionId,
-        userId: userProfile.userId,
+        userId: userProfile.id,
         correct: false,
         timeElapsed: elapsedTime,
         questionId: currentQuestionIndex

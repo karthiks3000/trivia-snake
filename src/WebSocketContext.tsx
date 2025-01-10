@@ -24,7 +24,7 @@ export const WebSocketProvider: React.FC<WebSocketProviderProps> = ({ children, 
   const [lastMessage, setLastMessage] = useState<WebSocketResponse | null>(null);
 
   useEffect(() => {
-    const wsUrl = `${process.env.REACT_APP_WEBSOCKET_URL}?userId=${userProfile.userId}&username=${userProfile.username}`;
+    const wsUrl = `${process.env.REACT_APP_WEBSOCKET_URL}?userId=${userProfile.id}&username=${userProfile.username}`;
     const ws = new WebSocket(wsUrl);
 
     ws.onopen = () => {

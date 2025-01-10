@@ -65,7 +65,7 @@ const MultiplayerLobby: React.FC<MultiplayerLobbyProps> = ({ userProfile }) => {
         setPlayers(data.players!);
         
         // If current user is the new host, update host status
-        if (data.newHostId && data.newHostId === userProfile.userId && data.oldHostId != userProfile.userId) {
+        if (data.newHostId && data.newHostId === userProfile.id && data.oldHostId != userProfile.id) {
           setIsHost(true);
           // display toast informing the user
           toast({
@@ -116,7 +116,7 @@ const MultiplayerLobby: React.FC<MultiplayerLobbyProps> = ({ userProfile }) => {
       const response = await sendMessage({
         action: 'createSession',
         adventureId: adventure.id,
-        userId: userProfile.userId,
+        userId: userProfile.id,
         username: userProfile.username,
         questions: adventure.questions
       });
@@ -125,7 +125,7 @@ const MultiplayerLobby: React.FC<MultiplayerLobbyProps> = ({ userProfile }) => {
         setSessionId(response.sessionId);
         setIsHost(true);
         setPlayers([{
-          userId: userProfile.userId,
+          userId: userProfile.id,
           username: userProfile.username,
           ready: true,
           score: 0,
@@ -154,7 +154,7 @@ const MultiplayerLobby: React.FC<MultiplayerLobbyProps> = ({ userProfile }) => {
       const response = await sendMessage({
         action: 'joinSession',
         sessionId: joinCode,
-        userId: userProfile.userId,
+        userId: userProfile.id,
         username: userProfile.username
       });
 
@@ -180,7 +180,7 @@ const MultiplayerLobby: React.FC<MultiplayerLobbyProps> = ({ userProfile }) => {
         action: 'leaveSession',
         sessionId: sessionId,
         username: userProfile.username,
-        userId: userProfile.userId
+        userId: userProfile.id
       });
     }
     
@@ -195,7 +195,7 @@ const MultiplayerLobby: React.FC<MultiplayerLobbyProps> = ({ userProfile }) => {
     
     // Navigate back to the main menu or previous page
     navigate('/game/adventure-selection');
-  }, [sessionId, userProfile.userId, sendMessage, navigate]);
+  }, [sessionId, userProfile.id, sendMessage, navigate]);
 
 
   // Add a loading state
