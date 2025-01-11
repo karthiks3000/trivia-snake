@@ -2,6 +2,85 @@
 @tailwind components;
 @tailwind utilities;
 
+@layer base {
+  html, body, #root {
+    height: 100%;
+    overflow: hidden;
+  }
+}
+
+@layer components {
+  .mobile-control {
+    @apply fixed bottom-4 left-1/2 transform -translate-x-1/2 flex flex-col items-center z-50;
+  }
+
+  .mobile-control .row {
+    @apply flex justify-center items-center gap-4 mb-4;
+  }
+
+  .mobile-control button {
+    @apply w-16 h-16 bg-blue-500 text-white rounded-full text-2xl font-bold shadow-lg active:bg-blue-600 opacity-75 transition-all duration-200;
+  }
+}
+
+@media (max-width: 480px) {
+  .mobile-control {
+    @apply bottom-2;
+  }
+
+  .mobile-control .row {
+    @apply gap-2 mb-2;
+  }
+
+  .mobile-control button {
+    @apply w-14 h-14 text-xl;
+  }
+}
+
+@media (max-width: 768px) {
+  .game-container {
+    @apply flex flex-col items-center justify-center h-full;
+  }
+
+  .game-grid {
+    @apply w-full max-w-[90vw] aspect-square;
+  }
+
+  .game-title {
+    @apply text-xl;
+  }
+
+  .game-button {
+    @apply px-3 py-1.5 text-sm;
+  }
+
+  .game-input {
+    @apply px-2 py-1.5 text-sm;
+  }
+}
+
+@media (max-width: 480px) {
+  .game-container {
+    @apply p-2;
+  }
+
+  .game-grid {
+    @apply max-w-[95vw];
+  }
+
+  .game-title {
+    @apply text-lg mb-2;
+  }
+
+  .game-button {
+    @apply px-2 py-1 text-xs;
+  }
+
+  .game-input {
+    @apply px-1.5 py-1 text-xs;
+  }
+}
+
 @import './styles/animations.css';
 
 @layer base {
