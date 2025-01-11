@@ -293,54 +293,64 @@ const AdventureCreation: React.FC<AdventureCreationProps> = ({ isOpen, onClose, 
     }
   };
 
-  const handleConfirmedCreate = async () => {
-    setShowConfirmation(false);
-    setIsLoading(true);
-    setCurrentStage('saving');
-    try {
-      const formDataToSend = new FormData();
-      formDataToSend.append('title', formData.title);
-      formDataToSend.append('description', formData.description);
-      let imageBase64 = '';
-      if (formData.image) {
-        const reader = new FileReader();
-        imageBase64 = await new Promise((resolve) => {
-          reader.onload = (e) => resolve(e.target?.result as string);
-          reader.readAsDataURL(formData.image!);
-        });
-      }
-      formDataToSend.append('questions', JSON.stringify(formData.questions));
-      formDataToSend.append('createdBy', userProfile.id || '');
-
-      await api.createAdventure({
-        name: formData.title,
-        description: formData.description,
-        image: imageBase64,
-        questions: formData.questions,
-        createdBy: userProfile?.id,
-        genre: formData.genre
+const handleConfirmedCreate = async () => {
+  setShowConfirmation(false);
+  setIsLoading(true);
+  setCurrentStage('saving');
+  try {
+    const formDataToSend = new FormData();
+    formDataToSend.append('title', formData.title);
+    formDataToSend.append('description', formData.description);
+    let imageBase64 = '';
+    if (formData.image) {
+      const reader = new FileReader();
+      imageBase64 = await new Promise((resolve) => {
+        reader.onload = (e) => resolve(e.target?.result as string);
+        reader.readAsDataURL(formData.image!);
       });
-
-      setAlertInfo({ type: 'success', message: 'Adventure created successfully!' });
-      onAdventureCreated();
-      resetForm();
-    } catch (error) {
-      if (error instanceof AxiosError) {
-        setAlertInfo({ type: 'error', message: error.response?.data?.message || 'Failed to create adventure. Please try again.' });
-      } else {
-        setAlertInfo({ type: 'error', message: 'An unexpected error occurred. Please try again.' });
-      }
-    } finally {
-      setIsLoading(false);
-      setCurrentStage(null);
     }
-  };
+    formDataToSend.append('questions', JSON.stringify(formData.questions));
+    formDataToSend.append('createdBy', userProfile.id || '');
 
-  const resetForm = () => {
-    setFormData(initialFormState);
-    setErrors({});
-    setCurrentStep(1);
-  };
+    await api.createAdventure({
+      name: formData.title,
+      description: formData.description,
+      image: imageBase64,
+      questions: formData.questions,
+      createdBy: userProfile?.id,
+      genre: formData.genre
+    }).then(response => {
+      if(response.status === 200) {
+        setAlertInfo({ type: 'success', message: 'Adventure created successfully!' });
+        onAdventureCreated();
+        resetForm();
+        onClose(); // Close the modal on success
+      } else {
+        setAlertInfo({ type: 'error', message: response.data?.error || 'Failed to create adventure. Please try again.' });
+      }
+    })
+    .catch(error => {
+      setAlertInfo({ type: 'error', message: error.response?.data?.message || 'Failed to create adventure. Please try again.' });
+    });
+  } catch (error) {
+    if (error instanceof AxiosError) {
+      setAlertInfo({ type: 'error', message: error.response?.data?.message || 'Failed to create adventure. Please try again.' });
+    } else {
+      setAlertInfo({ type: 'error', message: 'An unexpected error occurred. Please try again.' });
+    }
+    // Don't close the modal on error
+  } finally {
+    setIsLoading(false);
+    setCurrentStage(null);
+  }
+};
+
+const resetForm = () => {
+  setFormData(initialFormState);
+  setErrors({});
+  setCurrentStep(1);
+  setAlertInfo(null); // Clear any existing alerts
+};
 
   const addNewQuestion = () => {
     setFormData(prevData => ({
@@ -356,7 +366,7 @@ const AdventureCreation: React.FC<AdventureCreationProps> = ({ isOpen, onClose, 
     <Dialog 
       open={isOpen} 
       onOpenChange={(open) => {
-        if (!open) {
+        if (!open && alertInfo?.type !== 'error') {
           resetForm();
           onClose();
         }

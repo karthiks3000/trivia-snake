@@ -200,6 +200,32 @@ const AdventureSelection: React.FC<AdventureSelectionProps> = ({ userProfile }) 
 
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
             <AnimatePresence>
+              <motion.div
+                initial={{ opacity: 0, y: 50 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -50 }}
+                transition={{ duration: 0.3 }}
+              >
+                <Card className="overflow-hidden hover:shadow-lg transition-all duration-300 flex flex-col min-h-[300px] transform hover:scale-105">
+                  <CardHeader className="p-0">
+                    <div className="w-full h-36 bg-indigo-100 flex items-center justify-center">
+                      <Plus className="h-10 w-10 text-indigo-400" />
+                    </div>
+                  </CardHeader>
+                  <CardContent className="flex-grow flex items-center justify-center">
+                    <CardTitle className="text-lg text-center text-indigo-700">Create Custom Adventure</CardTitle>
+                  </CardContent>
+                  <CardFooter className="p-2">
+                    <Button 
+                      onClick={() => setIsCreateAdventureOpen(true)} 
+                      className="w-full flex items-center justify-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white"
+                    >
+                      <Plus className="h-6 w-6" />
+                      Create
+                    </Button>
+                  </CardFooter>
+                </Card>
+              </motion.div>
               {filteredAdventures.map((adventure, index) => (
                 <motion.div
                   key={adventure.id}
@@ -233,32 +259,6 @@ const AdventureSelection: React.FC<AdventureSelectionProps> = ({ userProfile }) 
                   </Card>
                 </motion.div>
               ))}
-              <motion.div
-                initial={{ opacity: 0, y: 50 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -50 }}
-                transition={{ delay: filteredAdventures.length * 0.1, duration: 0.3 }}
-              >
-                <Card className="overflow-hidden hover:shadow-lg transition-all duration-300 flex flex-col min-h-[300px] transform hover:scale-105">
-                  <CardHeader className="p-0">
-                    <div className="w-full h-36 bg-indigo-100 flex items-center justify-center">
-                      <Plus className="h-10 w-10 text-indigo-400" />
-                    </div>
-                  </CardHeader>
-                  <CardContent className="flex-grow flex items-center justify-center">
-                    <CardTitle className="text-lg text-center text-indigo-700">Create Custom Adventure</CardTitle>
-                  </CardContent>
-                  <CardFooter className="p-2">
-                    <Button 
-                      onClick={() => setIsCreateAdventureOpen(true)} 
-                      className="w-full flex items-center justify-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white"
-                    >
-                      <Plus className="h-6 w-6" />
-                      Create
-                    </Button>
-                  </CardFooter>
-                </Card>
-              </motion.div>
             </AnimatePresence>
           </div>
         </div>

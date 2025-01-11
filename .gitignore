@@ -26,6 +26,7 @@ yarn-error.log*
 .cdk.staging
 cdk.out
 .env.*
+.vscode
 
 node_modules
 infra/node_modules
