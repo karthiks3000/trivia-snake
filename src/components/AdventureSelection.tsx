@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { UserProfile } from '../App';
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "./ui/Card";
 import { Button } from "./ui/Button";
-import { Plus, Loader2, Search } from 'lucide-react';
+import { Plus, Search } from 'lucide-react';
 import api from '../api';
 import { Alert, AlertDescription, AlertTitle } from "./ui/Alert";
 import AdventureCreation, { GENRES } from './AdventureCreation';
@@ -11,6 +11,7 @@ import { Input } from "./ui/Input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "./ui/Select";
 import { useNavigate } from 'react-router-dom';
 import GameModeModal from './GameModeModal';
+import LoadingIndicator from './LoadingIndicator';
 
 export interface Adventure {
   id?: string;
@@ -101,7 +102,7 @@ const AdventureSelection: React.FC<AdventureSelectionProps> = ({ userProfile }) 
   };
 
   if (isLoading) {
-    return <div className="flex justify-center items-center h-screen"><Loader2 className="h-8 w-8 animate-spin" /></div>;
+    return <LoadingIndicator />;
   }
 
   if (error) {
