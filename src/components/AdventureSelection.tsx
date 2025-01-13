@@ -149,6 +149,25 @@ const AdventureSelection: React.FC<AdventureSelectionProps> = ({ userProfile }) 
         </Select>
       </div>
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <Card className="overflow-hidden hover:shadow-lg transition-shadow duration-300 flex flex-col min-h-[400px]">
+          <CardHeader className="p-0">
+            <div className="w-full h-48 bg-gray-200 flex items-center justify-center">
+              <Plus className="h-12 w-12 text-gray-400" />
+            </div>
+          </CardHeader>
+          <CardContent className="flex-grow flex items-center justify-center">
+            <CardTitle className="text-xl text-center">Create Custom Adventure</CardTitle>
+          </CardContent>
+          <CardFooter className="p-4">
+            <Button 
+              onClick={() => setIsCreateModalOpen(true)} 
+              className="w-full flex items-center justify-center gap-2"
+            >
+              <Plus className="h-6 w-6" />
+              Create
+            </Button>
+          </CardFooter>
+        </Card>
         {filteredAdventures.map((adventure) => (
           <Card key={adventure.id} className="overflow-hidden hover:shadow-lg transition-shadow duration-300 flex flex-col min-h-[400px]">
             <CardHeader className="p-0">
@@ -173,25 +192,7 @@ const AdventureSelection: React.FC<AdventureSelectionProps> = ({ userProfile }) 
             </CardFooter>
           </Card>
         ))}
-        <Card className="overflow-hidden hover:shadow-lg transition-shadow duration-300 flex flex-col min-h-[400px]">
-          <CardHeader className="p-0">
-            <div className="w-full h-48 bg-gray-200 flex items-center justify-center">
-              <Plus className="h-12 w-12 text-gray-400" />
-            </div>
-          </CardHeader>
-          <CardContent className="flex-grow flex items-center justify-center">
-            <CardTitle className="text-xl text-center">Create Custom Adventure</CardTitle>
-          </CardContent>
-          <CardFooter className="p-4">
-            <Button 
-              onClick={() => setIsCreateModalOpen(true)} 
-              className="w-full flex items-center justify-center gap-2"
-            >
-              <Plus className="h-6 w-6" />
-              Create
-            </Button>
-          </CardFooter>
-        </Card>
+        
       </div>
 
       <AdventureCreation
